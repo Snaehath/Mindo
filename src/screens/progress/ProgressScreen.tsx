@@ -62,7 +62,7 @@ export const ProgressScreen: React.FC = () => {
           <View style={styles.compareItem}>
             <Text style={styles.compareLabel}>Before Training</Text>
             <Text style={styles.compareValMuted}>
-              {profile.baselineScore ? `${profile.baselineScore.recalled} / 5` : '—'}
+              {profile.baselineScore ? `${profile.baselineScore.recalled} / 8` : '—'}
             </Text>
             <Text style={styles.compareSub}>Raw recall</Text>
           </View>
@@ -123,7 +123,7 @@ export const ProgressScreen: React.FC = () => {
                 <View style={styles.metricDivider} />
                 <View style={styles.metricCol}>
                   <Text style={styles.metricVal}>{prog.bestScore}</Text>
-                  <Text style={styles.metricLabel}>Best streak</Text>
+                  <Text style={styles.metricLabel}>Personal best</Text>
                 </View>
               </View>
             </Card>

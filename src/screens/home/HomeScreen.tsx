@@ -1,16 +1,17 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '../../navigation/NavigationContext';
 import { ScreenContainer } from '../../components/ScreenContainer';
 import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
-import { ProgressBar } from '../../components/ProgressBar';
 import { colors, typography, spacing, radius } from '../../theme';
 import { techniqueModules } from '../../data/lessonsData';
 
 export const HomeScreen: React.FC = () => {
-  const { profile, techniqueProgress, navigate, activeRetentionMemory } = useNavigation();
+  const insets = useSafeAreaInsets();
+  const { techniqueProgress, navigate, activeRetentionMemory } = useNavigation();
 
   const getGreeting = (): string => {
     const hour = new Date().getHours();
@@ -19,7 +20,50 @@ export const HomeScreen: React.FC = () => {
     return 'Good evening 👋';
   };
 
-  // Determine Today's Training recommendation dynamically based on user progress
+  // Calculate individual skill strengths (0 - 100)
+  const getSkillStrength = (completedSteps: number, totalPractices: number, bestScore: number) => {
+    const stepPart = (completedSteps / 6) * 50; // up to 50% from steps
+    const practicePart = Math.min(30, totalPractices * 6); // up to 30% from workouts
+    const scorePart = Math.min(20, (bestScore / 15) * 20); // up to 20% from capacity
+    return Math.max(12, Math.min(100, Math.round(stepPart + practicePart + scorePart)));
+  };
+
+  const getSkillStage = (strength: number): string => {
+    if (strength < 25) return 'New';
+    if (strength < 50) return 'Learning';
+    if (strength < 75) return 'Building';
+    if (strength < 90) return 'Skilled';
+    return 'Strong';
+  };
+
+  const palaceStrength = getSkillStrength(
+    techniqueProgress.palace.completedSteps,
+    techniqueProgress.palace.totalPractices,
+    techniqueProgress.palace.bestScore
+  );
+  const linkingStrength = getSkillStrength(
+    techniqueProgress.linking.completedSteps,
+    techniqueProgress.linking.totalPractices,
+    techniqueProgress.linking.bestScore
+  );
+  const pegStrength = getSkillStrength(
+    techniqueProgress.peg.completedSteps,
+    techniqueProgress.peg.totalPractices,
+    techniqueProgress.peg.bestScore
+  );
+
+  // Overall Recall Strength (weighted towards palace)
+  const overallStrength = Math.round(
+    palaceStrength * 0.5 + linkingStrength * 0.25 + pegStrength * 0.25
+  );
+
+  // Check if any retention memories need attention / refresh
+  const isRetentionDue =
+    activeRetentionMemory &&
+    (new Date().getTime() >= new Date(activeRetentionMemory.nextReviewDate).getTime() ||
+      activeRetentionMemory.reviews.length === 0);
+
+  // Determine Today's Training recommendation
   const getTodayTraining = () => {
     const palaceSteps = techniqueProgress.palace.completedSteps;
     const linkingSteps = techniqueProgress.linking.completedSteps;
@@ -27,453 +71,359 @@ export const HomeScreen: React.FC = () => {
 
     if (palaceSteps < 6) {
       return {
-        techniqueId: 'palace' as const,
         title: 'Memory Palace',
-        subtitle: 'Remember 5 objects using your familiar spots.',
-        actionLabel: 'Start →',
+        subtitle: 'Learn familiar spots & bizarre imagery.',
         action: () => navigate('techniqueDetail', { techniqueId: 'palace' }),
-        color: colors.palace,
-        lightColor: colors.palaceLight,
       };
     }
     if (linkingSteps < 6) {
       return {
-        techniqueId: 'linking' as const,
-        title: 'Linking / Story Method',
-        subtitle: 'Chain bizarre mental links between 5 items.',
-        actionLabel: 'Learn Technique →',
+        title: 'Linking / Story',
+        subtitle: 'Chain bizarre cause-and-effects.',
         action: () => navigate('techniqueDetail', { techniqueId: 'linking' }),
-        color: colors.linking,
-        lightColor: colors.linkingLight,
       };
     }
     if (pegSteps < 6) {
       return {
-        techniqueId: 'peg' as const,
-        title: 'The Peg System',
-        subtitle: 'Learn the 1–10 number rhyme pegs for instant recall.',
-        actionLabel: 'Learn Pegs →',
+        title: 'Peg System',
+        subtitle: 'Learn number rhyme pegs for instant recall.',
         action: () => navigate('techniqueDetail', { techniqueId: 'peg' }),
-        color: colors.peg,
-        lightColor: colors.pegLight,
       };
     }
 
-    // Otherwise suggest daily practice
     return {
-      techniqueId: 'palace' as const,
-      title: 'Daily Palace Drill',
-      subtitle: 'Remember 10 objects using your palace in Level 2.',
-      actionLabel: 'Start Practice →',
+      title: 'Memory Palace Drill',
+      subtitle: '10 items · ~3 min',
       action: () => navigate('practiceSession', { techniqueId: 'palace', level: 2 }),
-      color: colors.palace,
-      lightColor: colors.palaceLight,
     };
   };
 
   const todayTraining = getTodayTraining();
 
-  const getTechniqueStage = (
-    completedSteps: number,
-    totalPractices: number,
-    bestScore: number
-  ): string => {
-    if (completedSteps < 6) return 'Learning';
-    if (totalPractices < 3) return 'Practicing';
-    if (totalPractices < 7 || bestScore < 10) return 'Developing';
-    if (bestScore < 15) return 'Skilled';
-    return 'Strong';
-  };
-
-  const palaceStage = getTechniqueStage(
-    techniqueProgress.palace.completedSteps,
-    techniqueProgress.palace.totalPractices,
-    techniqueProgress.palace.bestScore
-  );
-  const linkingStage = getTechniqueStage(
-    techniqueProgress.linking.completedSteps,
-    techniqueProgress.linking.totalPractices,
-    techniqueProgress.linking.bestScore
-  );
-  const pegStage = getTechniqueStage(
-    techniqueProgress.peg.completedSteps,
-    techniqueProgress.peg.totalPractices,
-    techniqueProgress.peg.bestScore
-  );
-
   return (
-    <ScreenContainer scrollable contentContainerStyle={styles.container}>
-      {/* Friendly Header */}
+    <ScreenContainer
+      scrollable={false}
+      contentContainerStyle={[
+        styles.container,
+        { paddingBottom: Math.max(insets.bottom, 16) + 12 },
+      ]}
+    >
+      {/* 1. Header: Greeting & Quiet Mindo Branding */}
       <View style={styles.header}>
         <View>
           <Text style={styles.greeting}>{getGreeting()}</Text>
-          <Text style={styles.mainHeading}>Train your memory</Text>
+          <Text style={styles.mainTitle}>Your Memory</Text>
         </View>
-        {profile.streakDays > 0 && (
-          <View style={styles.streakBadge}>
-            <MaterialCommunityIcons name="fire" size={18} color="#EA580C" />
-            <Text style={styles.streakText}>{profile.streakDays}d</Text>
-          </View>
-        )}
+        <View style={styles.brandBadge}>
+          <MaterialCommunityIcons name="brain" size={16} color={colors.palace} />
+          <Text style={styles.brandBadgeText}>Mindo</Text>
+        </View>
       </View>
 
-      <Text style={styles.quoteSub}>5 minutes today can make a difference.</Text>
-
-      {/* Spaced Retention Memory Check-in */}
-      {activeRetentionMemory && (
-        <Card
-          variant="tinted"
-          tintColor={colors.palaceLight}
-          style={styles.retentionHomeCard}
-        >
-          <View style={styles.retentionHeaderRow}>
-            <View style={styles.retentionBadge}>
-              <MaterialCommunityIcons name="calendar-clock" size={14} color={colors.palace} />
-              <Text style={styles.retentionBadgeText}>
-                DAY {activeRetentionMemory.currentIntervalDay} RETENTION CHECK-IN
-              </Text>
-            </View>
-            <Text style={styles.retentionItemCount}>
-              {activeRetentionMemory.items.length} items
-            </Text>
-          </View>
-
-          <Text style={styles.retentionCardTitle}>
-            Can you walk through your palace?
-          </Text>
-          <Text style={styles.retentionCardSubtitle}>
-            {activeRetentionMemory.items.length} items are stored in {activeRetentionMemory.palaceName}. Walk through from memory and see how many still hold.
-          </Text>
-
-          <View style={styles.heroButtonWrap}>
-            <Button
-              label={`Recall ${activeRetentionMemory.items.length} Items →`}
-              onPress={() => navigate('delayedRecall', { memoryId: activeRetentionMemory.id })}
-              variant="palace"
-            />
-          </View>
-        </Card>
-      )}
-
-      {/* Primary Card: Today's Training */}
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Today's Training</Text>
-      </View>
-
-      <Card
-        variant="tinted"
-        tintColor={todayTraining.lightColor}
-        style={styles.heroCard}
-      >
-        <View style={styles.heroHeaderRow}>
-          <Text style={[styles.heroBadge, { color: todayTraining.color }]}>
-            RECOMMENDED WORKOUT
-          </Text>
+      {/* 2. Core Card: Recall Strength Battery & Direct Action */}
+      <Card variant="tinted" tintColor={colors.palaceLight} style={styles.batteryHeroCard}>
+        <View style={styles.batteryHeaderRow}>
+          <Text style={styles.batteryHeaderLabel}>RECALL STRENGTH</Text>
           <MaterialCommunityIcons
             name={
-              todayTraining.techniqueId === 'palace'
-                ? 'castle'
-                : todayTraining.techniqueId === 'linking'
-                ? 'link-variant'
-                : 'format-list-numbered'
+              overallStrength >= 80
+                ? 'battery-high'
+                : overallStrength >= 50
+                ? 'battery-medium'
+                : 'battery-low'
             }
-            size={24}
-            color={todayTraining.color}
+            size={22}
+            color={colors.palace}
           />
         </View>
 
-        <Text style={styles.heroTitle}>{todayTraining.title}</Text>
-        <Text style={styles.heroSubtitle}>{todayTraining.subtitle}</Text>
-
-        <View style={styles.heroButtonWrap}>
-          <Button
-            label={todayTraining.actionLabel}
-            onPress={todayTraining.action}
-            style={{ backgroundColor: todayTraining.color }}
-          />
+        <View style={styles.strengthScoreRow}>
+          <Text style={styles.strengthNumber}>{overallStrength}%</Text>
+          <Text style={styles.strengthStatusTag}>
+            {overallStrength >= 80 ? 'Looking strong' : 'Building consistency'}
+          </Text>
         </View>
+
+        {/* Tactile Battery Bar */}
+        <View style={styles.batteryTrack}>
+          <View style={[styles.batteryFill, { width: `${overallStrength}%` }]} />
+        </View>
+
+        {/* Coach Context & One Obvious Next Action */}
+        {isRetentionDue && activeRetentionMemory ? (
+          <View style={styles.actionBlock}>
+            <Text style={styles.coachText}>
+              {activeRetentionMemory.items.length} items could use a quick refresh.
+            </Text>
+            <Button
+              label={`Strengthen Palace (${activeRetentionMemory.items.length} items) →`}
+              onPress={() => navigate('delayedRecall', { memoryId: activeRetentionMemory.id })}
+              variant="palace"
+              size="normal"
+            />
+          </View>
+        ) : (
+          <View style={styles.actionBlock}>
+            <Text style={styles.coachText}>
+              Your recall is holding well. Ready for today's drill?
+            </Text>
+            <Button
+              label={`Start: ${todayTraining.title} →`}
+              onPress={todayTraining.action}
+              variant="palace"
+              size="normal"
+            />
+          </View>
+        )}
       </Card>
 
-      {/* Your Progress */}
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Your Progress</Text>
+      {/* 3. Your Skills: 3 Compact Capability Rows */}
+      <View style={styles.skillsSection}>
+        <Text style={styles.sectionHeaderTitle}>Your Skills</Text>
+
+        <Card style={styles.skillsCard}>
+          {/* Memory Palace */}
+          <TouchableOpacity
+            style={styles.skillRow}
+            onPress={() => navigate('techniqueDetail', { techniqueId: 'palace' })}
+            activeOpacity={0.7}
+          >
+            <View style={styles.skillIconBox}>
+              <MaterialCommunityIcons name="castle" size={20} color={colors.palace} />
+            </View>
+            <View style={styles.skillInfo}>
+              <View style={styles.skillTitleRow}>
+                <Text style={styles.skillName}>Memory Palace</Text>
+                <Text style={[styles.skillPercent, { color: colors.palace }]}>
+                  {palaceStrength}% · {getSkillStage(palaceStrength)}
+                </Text>
+              </View>
+              <View style={styles.miniTrack}>
+                <View
+                  style={[
+                    styles.miniFill,
+                    { width: `${palaceStrength}%`, backgroundColor: colors.palace },
+                  ]}
+                />
+              </View>
+            </View>
+          </TouchableOpacity>
+
+          <View style={styles.skillDivider} />
+
+          {/* Linking */}
+          <TouchableOpacity
+            style={styles.skillRow}
+            onPress={() => navigate('techniqueDetail', { techniqueId: 'linking' })}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.skillIconBox, { backgroundColor: colors.linkingLight }]}>
+              <MaterialCommunityIcons name="link-variant" size={20} color={colors.linking} />
+            </View>
+            <View style={styles.skillInfo}>
+              <View style={styles.skillTitleRow}>
+                <Text style={styles.skillName}>Story Linking</Text>
+                <Text style={[styles.skillPercent, { color: colors.linking }]}>
+                  {linkingStrength}% · {getSkillStage(linkingStrength)}
+                </Text>
+              </View>
+              <View style={styles.miniTrack}>
+                <View
+                  style={[
+                    styles.miniFill,
+                    { width: `${linkingStrength}%`, backgroundColor: colors.linking },
+                  ]}
+                />
+              </View>
+            </View>
+          </TouchableOpacity>
+
+          <View style={styles.skillDivider} />
+
+          {/* Peg System */}
+          <TouchableOpacity
+            style={styles.skillRow}
+            onPress={() => navigate('techniqueDetail', { techniqueId: 'peg' })}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.skillIconBox, { backgroundColor: colors.pegLight }]}>
+              <MaterialCommunityIcons name="format-list-numbered" size={20} color={colors.peg} />
+            </View>
+            <View style={styles.skillInfo}>
+              <View style={styles.skillTitleRow}>
+                <Text style={styles.skillName}>Peg System</Text>
+                <Text style={[styles.skillPercent, { color: colors.peg }]}>
+                  {pegStrength}% · {getSkillStage(pegStrength)}
+                </Text>
+              </View>
+              <View style={styles.miniTrack}>
+                <View
+                  style={[
+                    styles.miniFill,
+                    { width: `${pegStrength}%`, backgroundColor: colors.peg },
+                  ]}
+                />
+              </View>
+            </View>
+          </TouchableOpacity>
+        </Card>
       </View>
-
-      <Card style={styles.progressCard}>
-        {/* Memory Palace */}
-        <TouchableOpacity
-          style={styles.techProgressRow}
-          onPress={() => navigate('techniqueDetail', { techniqueId: 'palace' })}
-          activeOpacity={0.7}
-        >
-          <View style={styles.techLabelRow}>
-            <View style={styles.techTitleGroup}>
-              <MaterialCommunityIcons name="castle" size={18} color={colors.palace} />
-              <Text style={styles.techName}>Memory Palace</Text>
-            </View>
-            <View style={[styles.stageChip, { backgroundColor: colors.palaceLight }]}>
-              <Text style={[styles.stageChipText, { color: colors.palace }]}>{palaceStage}</Text>
-            </View>
-          </View>
-          {techniqueProgress.palace.bestScore > 0 && (
-            <Text style={styles.personalBestHomeText}>
-              Personal best: {techniqueProgress.palace.bestScore} items
-            </Text>
-          )}
-        </TouchableOpacity>
-
-        <View style={styles.divider} />
-
-        {/* Linking */}
-        <TouchableOpacity
-          style={styles.techProgressRow}
-          onPress={() => navigate('techniqueDetail', { techniqueId: 'linking' })}
-          activeOpacity={0.7}
-        >
-          <View style={styles.techLabelRow}>
-            <View style={styles.techTitleGroup}>
-              <MaterialCommunityIcons name="link-variant" size={18} color={colors.linking} />
-              <Text style={styles.techName}>Linking</Text>
-            </View>
-            <View style={[styles.stageChip, { backgroundColor: colors.linkingLight }]}>
-              <Text style={[styles.stageChipText, { color: colors.linking }]}>{linkingStage}</Text>
-            </View>
-          </View>
-          {techniqueProgress.linking.bestScore > 0 && (
-            <Text style={styles.personalBestHomeText}>
-              Personal best: {techniqueProgress.linking.bestScore} items
-            </Text>
-          )}
-        </TouchableOpacity>
-
-        <View style={styles.divider} />
-
-        {/* Peg System */}
-        <TouchableOpacity
-          style={styles.techProgressRow}
-          onPress={() => navigate('techniqueDetail', { techniqueId: 'peg' })}
-          activeOpacity={0.7}
-        >
-          <View style={styles.techLabelRow}>
-            <View style={styles.techTitleGroup}>
-              <MaterialCommunityIcons name="format-list-numbered" size={18} color={colors.peg} />
-              <Text style={styles.techName}>Peg System</Text>
-            </View>
-            <View style={[styles.stageChip, { backgroundColor: colors.pegLight }]}>
-              <Text style={[styles.stageChipText, { color: colors.peg }]}>{pegStage}</Text>
-            </View>
-          </View>
-          {techniqueProgress.peg.bestScore > 0 && (
-            <Text style={styles.personalBestHomeText}>
-              Personal best: {techniqueProgress.peg.bestScore} items
-            </Text>
-          )}
-        </TouchableOpacity>
-      </Card>
-
-      {/* Quick Gym Action Shortcut */}
-      <TouchableOpacity
-        style={styles.quickPracticeBanner}
-        onPress={() => navigate('practice')}
-        activeOpacity={0.8}
-      >
-        <MaterialCommunityIcons name="dumbbell" size={24} color={colors.primary} />
-        <View style={styles.quickPracticeTextWrap}>
-          <Text style={styles.quickPracticeTitle}>Visit the Memory Gym</Text>
-          <Text style={styles.quickPracticeSub}>Practice with 5, 10, 15, or 20 items anytime.</Text>
-        </View>
-        <MaterialCommunityIcons name="chevron-right" size={20} color={colors.textMuted} />
-      </TouchableOpacity>
     </ScreenContainer>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    paddingTop: spacing.l,
-    paddingBottom: spacing.xxl,
+    flex: 1,
+    paddingHorizontal: spacing.l,
+    paddingTop: spacing.m,
+    justifyContent: 'space-between',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: spacing.xs,
+    alignItems: 'center',
+    marginBottom: spacing.s,
   },
   greeting: {
-    ...typography.bodyM,
+    ...typography.caption,
     color: colors.textSecondary,
-    fontWeight: '500',
-    marginBottom: 4,
+    fontWeight: '600',
+    marginBottom: 2,
   },
-  mainHeading: {
+  mainTitle: {
     ...typography.headingXL,
+    fontSize: 26,
     color: colors.textPrimary,
   },
-  streakBadge: {
+  brandBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFEDD5',
-    paddingVertical: 4,
+    gap: 4,
+    backgroundColor: colors.palaceLight,
+    paddingVertical: 5,
     paddingHorizontal: spacing.m,
     borderRadius: radius.pill,
-    gap: 4,
   },
-  streakText: {
-    ...typography.bodyS,
+  brandBadgeText: {
+    ...typography.caption,
     fontWeight: '700',
-    color: '#9A3412',
+    color: colors.palace,
   },
-  quoteSub: {
-    ...typography.bodyL,
-    color: colors.textSecondary,
-    marginBottom: spacing.xxl,
-  },
-  sectionHeader: {
-    marginBottom: spacing.m,
-  },
-  sectionTitle: {
-    ...typography.headingM,
-    color: colors.textPrimary,
-  },
-  retentionHomeCard: {
-    padding: spacing.xl,
+  batteryHeroCard: {
+    padding: spacing.l,
     borderRadius: radius.xl,
-    marginBottom: spacing.xxl,
     borderWidth: 1.5,
     borderColor: colors.palace,
   },
-  retentionHeaderRow: {
+  batteryHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing.s,
+    marginBottom: spacing.xs,
   },
-  retentionBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  retentionBadgeText: {
+  batteryHeaderLabel: {
     ...typography.caption,
-    color: colors.palace,
     fontWeight: '800',
-    letterSpacing: 0.8,
+    letterSpacing: 1,
+    color: colors.palace,
   },
-  retentionItemCount: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    fontWeight: '600',
-  },
-  retentionCardTitle: {
-    ...typography.headingL,
-    color: colors.textPrimary,
-    marginBottom: spacing.xs,
-  },
-  retentionCardSubtitle: {
-    ...typography.bodyM,
-    color: colors.textSecondary,
-    lineHeight: 22,
-    marginBottom: spacing.l,
-  },
-  heroCard: {
-    padding: spacing.xl,
-    borderRadius: radius.xl,
-    marginBottom: spacing.xxl,
-  },
-  heroHeaderRow: {
+  strengthScoreRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.s,
-  },
-  heroBadge: {
-    ...typography.caption,
-    fontWeight: '700',
-    letterSpacing: 0.8,
-  },
-  heroTitle: {
-    ...typography.headingL,
-    color: colors.textPrimary,
-    marginBottom: spacing.xs,
-  },
-  heroSubtitle: {
-    ...typography.bodyM,
-    color: colors.textSecondary,
-    lineHeight: 22,
-    marginBottom: spacing.l,
-  },
-  heroButtonWrap: {
-    marginTop: spacing.xs,
-  },
-  progressCard: {
-    padding: spacing.l,
-    borderRadius: radius.l,
-    marginBottom: spacing.xl,
-  },
-  techProgressRow: {
-    paddingVertical: spacing.s,
-  },
-  techLabelRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.s,
-  },
-  techTitleGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'baseline',
     gap: spacing.s,
+    marginBottom: spacing.s,
   },
-  techName: {
-    ...typography.bodyM,
-    fontWeight: '600',
+  strengthNumber: {
+    ...typography.headingXL,
+    fontSize: 38,
+    fontWeight: '800',
     color: colors.textPrimary,
   },
-  techPercent: {
-    ...typography.bodyS,
-    fontWeight: '700',
-    color: colors.textSecondary,
+  strengthStatusTag: {
+    ...typography.bodyM,
+    fontWeight: '600',
+    color: colors.palace,
   },
-  stageChip: {
-    paddingVertical: 2,
-    paddingHorizontal: 8,
+  batteryTrack: {
+    height: 10,
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: radius.pill,
+    overflow: 'hidden',
+    marginBottom: spacing.m,
+  },
+  batteryFill: {
+    height: '100%',
+    backgroundColor: colors.palace,
     borderRadius: radius.pill,
   },
-  stageChipText: {
-    ...typography.caption,
-    fontWeight: '700',
-    fontSize: 11,
+  actionBlock: {
+    gap: spacing.s,
   },
-  personalBestHomeText: {
-    ...typography.caption,
+  coachText: {
+    ...typography.bodyM,
     color: colors.textSecondary,
-    marginTop: 2,
+    lineHeight: 20,
   },
-  divider: {
-    height: 1,
-    backgroundColor: colors.border,
-    marginVertical: spacing.s,
+  skillsSection: {
+    marginBottom: spacing.xs,
   },
-  quickPracticeBanner: {
+  sectionHeaderTitle: {
+    ...typography.headingM,
+    fontSize: 16,
+    color: colors.textPrimary,
+    marginBottom: spacing.s,
+  },
+  skillsCard: {
+    paddingVertical: spacing.s,
+    paddingHorizontal: spacing.m,
+    borderRadius: radius.l,
+  },
+  skillRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.surface,
-    padding: spacing.l,
-    borderRadius: radius.l,
-    borderWidth: 1,
-    borderColor: colors.border,
+    paddingVertical: 10,
+    gap: spacing.m,
   },
-  quickPracticeTextWrap: {
+  skillIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.palaceLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  skillInfo: {
     flex: 1,
-    marginLeft: spacing.m,
   },
-  quickPracticeTitle: {
-    ...typography.headingM,
-    fontSize: 15,
+  skillTitleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
   },
-  quickPracticeSub: {
-    ...typography.bodyS,
-    color: colors.textSecondary,
-    marginTop: 2,
+  skillName: {
+    ...typography.bodyM,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  skillPercent: {
+    ...typography.caption,
+    fontWeight: '700',
+    fontSize: 12,
+  },
+  miniTrack: {
+    height: 5,
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: radius.pill,
+    overflow: 'hidden',
+  },
+  miniFill: {
+    height: '100%',
+    borderRadius: radius.pill,
+  },
+  skillDivider: {
+    height: 1,
+    backgroundColor: colors.border,
   },
 });
