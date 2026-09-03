@@ -20,12 +20,13 @@ export const HomeScreen: React.FC = () => {
     return 'Good evening 👋';
   };
 
-  // Calculate individual skill strengths (0 - 100)
+  // Calculate individual skill strengths (starts at 10% for new users)
   const getSkillStrength = (completedSteps: number, totalPractices: number, bestScore: number) => {
-    const stepPart = (completedSteps / 6) * 50; // up to 50% from steps
-    const practicePart = Math.min(30, totalPractices * 6); // up to 30% from workouts
+    const base = 10; // Baseline floor for brand new users
+    const stepPart = (completedSteps / 6) * 45; // up to 45% from steps
+    const practicePart = Math.min(25, totalPractices * 5); // up to 25% from workouts
     const scorePart = Math.min(20, (bestScore / 15) * 20); // up to 20% from capacity
-    return Math.max(12, Math.min(100, Math.round(stepPart + practicePart + scorePart)));
+    return Math.max(10, Math.min(100, Math.round(base + stepPart + practicePart + scorePart)));
   };
 
   const getSkillStage = (strength: number): string => {
@@ -52,9 +53,10 @@ export const HomeScreen: React.FC = () => {
     techniqueProgress.peg.bestScore
   );
 
-  // Overall Recall Strength (weighted towards palace)
-  const overallStrength = Math.round(
-    palaceStrength * 0.5 + linkingStrength * 0.25 + pegStrength * 0.25
+  // Overall Recall Strength (starts at 10% minimum)
+  const overallStrength = Math.max(
+    10,
+    Math.round(palaceStrength * 0.5 + linkingStrength * 0.25 + pegStrength * 0.25)
   );
 
   // Check if any retention memories need attention / refresh

@@ -24,7 +24,7 @@ const defaultTechniqueProgress: Record<TechniqueType, TechniqueProgress> = {
     masteryLevel: 'beginner',
     totalPractices: 0,
     bestScore: 0,
-    averageAccuracy: 0,
+    averageAccuracy: 10,
   },
   linking: {
     techniqueId: 'linking',
@@ -32,7 +32,7 @@ const defaultTechniqueProgress: Record<TechniqueType, TechniqueProgress> = {
     masteryLevel: 'beginner',
     totalPractices: 0,
     bestScore: 0,
-    averageAccuracy: 0,
+    averageAccuracy: 10,
   },
   peg: {
     techniqueId: 'peg',
@@ -40,7 +40,7 @@ const defaultTechniqueProgress: Record<TechniqueType, TechniqueProgress> = {
     masteryLevel: 'beginner',
     totalPractices: 0,
     bestScore: 0,
-    averageAccuracy: 0,
+    averageAccuracy: 10,
   },
 };
 
