@@ -20,11 +20,34 @@ export const PracticeScreen: React.FC = () => {
   );
 
   const levels = [
-    { level: 1, count: 5, label: 'Level 1', desc: '5 items • Fast & Light' },
+    { level: 1, count: 5, label: 'Level 1', desc: '5 items • Fast Warmup' },
     { level: 2, count: 10, label: 'Level 2', desc: '10 items • Daily Gym Workout' },
     { level: 3, count: 15, label: 'Level 3', desc: '15 items • Skilled Challenge' },
     { level: 4, count: 20, label: 'Level 4', desc: '20 items • Superhuman Master' },
   ];
+
+  const { practiceHistory } = useNavigation();
+
+  const isLevelUnlocked = (lvl: number): boolean => {
+    if (lvl === 1) return true;
+    const techAttempts = practiceHistory.filter((p) => p.techniqueId === selectedTechnique);
+    if (lvl === 2) {
+      return techAttempts.length >= 1 || techAttempts.some((p) => p.level === 1 && p.accuracy >= 60);
+    }
+    if (lvl === 3) {
+      return techAttempts.some((p) => p.level === 2 && p.accuracy >= 70);
+    }
+    if (lvl === 4) {
+      return techAttempts.some((p) => p.level === 3 && p.accuracy >= 70);
+    }
+    return false;
+  };
+
+  const isLevelCompleted = (lvl: number): boolean => {
+    return practiceHistory.some(
+      (p) => p.techniqueId === selectedTechnique && p.level === lvl && p.accuracy >= 70
+    );
+  };
 
   const techniques: Array<{
     id: TechniqueType;
@@ -140,20 +163,46 @@ export const PracticeScreen: React.FC = () => {
       <View style={styles.levelGrid}>
         {levels.map((lvl) => {
           const isSelected = selectedLevel === lvl.level;
+          const unlocked = isLevelUnlocked(lvl.level);
+          const completed = isLevelCompleted(lvl.level);
+
           return (
             <TouchableOpacity
               key={lvl.level}
-              onPress={() => setSelectedLevel(lvl.level)}
-              activeOpacity={0.8}
+              onPress={() => {
+                if (unlocked) {
+                  setSelectedLevel(lvl.level);
+                }
+              }}
+              activeOpacity={unlocked ? 0.8 : 1}
               style={[
                 styles.levelCard,
                 isSelected && styles.levelCardSelected,
+                !unlocked && styles.levelCardLocked,
               ]}
             >
               <View style={styles.levelTop}>
-                <Text style={[styles.levelLabel, isSelected && styles.levelLabelSelected]}>
-                  {lvl.label}
-                </Text>
+                <View style={styles.levelTitleRow}>
+                  <Text style={[styles.levelLabel, isSelected && styles.levelLabelSelected]}>
+                    {lvl.label}
+                  </Text>
+                  {completed ? (
+                    <View style={styles.completedBadge}>
+                      <MaterialCommunityIcons name="check" size={14} color={colors.success} />
+                      <Text style={styles.completedBadgeText}>Completed</Text>
+                    </View>
+                  ) : !unlocked ? (
+                    <View style={styles.lockedBadge}>
+                      <MaterialCommunityIcons name="lock-outline" size={13} color={colors.textMuted} />
+                      <Text style={styles.lockedBadgeText}>Level {lvl.level - 1} first</Text>
+                    </View>
+                  ) : (
+                    <View style={styles.readyBadge}>
+                      <Text style={styles.readyBadgeText}>Ready!</Text>
+                    </View>
+                  )}
+                </View>
+
                 <View style={[styles.countBadge, isSelected && styles.countBadgeSelected]}>
                   <Text style={[styles.countText, isSelected && styles.countTextSelected]}>
                     {lvl.count} items
@@ -275,11 +324,64 @@ const styles = StyleSheet.create({
     borderColor: colors.primary,
     backgroundColor: colors.surfaceMuted,
   },
+  levelCardLocked: {
+    opacity: 0.6,
+    backgroundColor: colors.surfaceMuted,
+  },
   levelTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 4,
+  },
+  levelTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.s,
+  },
+  completedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: colors.successLight,
+    paddingVertical: 2,
+    paddingHorizontal: 6,
+    borderRadius: radius.pill,
+  },
+  completedBadgeText: {
+    ...typography.caption,
+    fontSize: 10,
+    color: colors.success,
+    fontWeight: '700',
+  },
+  lockedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: colors.surface,
+    paddingVertical: 2,
+    paddingHorizontal: 6,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  lockedBadgeText: {
+    ...typography.caption,
+    fontSize: 10,
+    color: colors.textMuted,
+    fontWeight: '600',
+  },
+  readyBadge: {
+    backgroundColor: colors.palaceLight,
+    paddingVertical: 2,
+    paddingHorizontal: 6,
+    borderRadius: radius.pill,
+  },
+  readyBadgeText: {
+    ...typography.caption,
+    fontSize: 10,
+    color: colors.palace,
+    fontWeight: '700',
   },
   levelLabel: {
     ...typography.headingM,

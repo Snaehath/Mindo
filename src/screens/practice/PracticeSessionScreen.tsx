@@ -220,8 +220,8 @@ export const PracticeSessionScreen: React.FC = () => {
             <Button
               label={
                 currentMemorizeIndex === items.length - 1
-                  ? 'I’ve Got All Items →'
-                  : 'I’ve Got It →'
+                  ? 'Done memorizing →'
+                  : 'Continue →'
               }
               onPress={handleNextMemorize}
               variant="palace"
@@ -248,10 +248,10 @@ export const PracticeSessionScreen: React.FC = () => {
 
           <Text style={styles.mentalModeTitle}>Put your phone down</Text>
           <Text style={styles.mentalModeBody}>
-            Close your eyes for 15 seconds.
+            Close your eyes and walk through your palace once.
           </Text>
           <Text style={[styles.mentalModeBody, { marginTop: spacing.s }]}>
-            Walk through your route in your mind. Check each spot: can you see the bizarre scene you placed there?
+            Check each spot: can you see the unusual scene you placed there?
           </Text>
 
           <Card variant="tinted" tintColor={colors.palaceLight} style={styles.mentalTipCard}>
@@ -261,7 +261,7 @@ export const PracticeSessionScreen: React.FC = () => {
           </Card>
 
           <Button
-            label="I Walked Through — I’m Ready →"
+            label="Ready to recall →"
             onPress={() => {
               setPhase('recall');
               setCurrentRecallQuestionIdx(0);
@@ -375,6 +375,17 @@ export const PracticeSessionScreen: React.FC = () => {
               ? 'Flawless Recall 🎉'
               : 'Workout Complete 🧠'}
           </Text>
+
+          {/* Coach Feedback */}
+          <Card variant="tinted" tintColor={colors.surfaceMuted} style={styles.coachResultCard}>
+            <Text style={styles.coachResultText}>
+              {sessionScore.correct === sessionScore.total
+                ? 'Outstanding recall. 👏 Your mental anchors held with complete accuracy.'
+                : sessionScore.correct >= Math.round(sessionScore.total * 0.7)
+                ? `Strong workout. You remembered ${sessionScore.correct} items. With practice, the remaining items will stick faster.`
+                : "That's completely normal when starting out. Practice makes the technique easier to use."}
+            </Text>
+          </Card>
 
           {/* Baseline Improvement Comparison */}
           {profile.baselineScore && (
@@ -707,6 +718,18 @@ const styles = StyleSheet.create({
   breakdownWrongText: {
     ...typography.bodyS,
     color: colors.danger,
+  },
+  coachResultCard: {
+    padding: spacing.l,
+    borderRadius: radius.l,
+    marginBottom: spacing.l,
+    alignItems: 'center',
+  },
+  coachResultText: {
+    ...typography.bodyM,
+    color: colors.textPrimary,
+    textAlign: 'center',
+    lineHeight: 22,
   },
   resultActionRow: {
     flexDirection: 'row',

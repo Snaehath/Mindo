@@ -85,6 +85,31 @@ export const TechniqueLessonScreen: React.FC = () => {
     return true;
   };
 
+  const getStepButtonLabel = (): string => {
+    switch (activeStepIndex) {
+      case 0:
+        return 'Continue →';
+      case 1:
+        return 'Try it →';
+      case 2:
+        return chosenSpot ? `Anchor to ${chosenSpot} →` : 'Choose a spot above';
+      case 3:
+        return Object.keys(placedItems).length === 4
+          ? 'Continue →'
+          : `Place items (${Object.keys(placedItems).length}/4 placed)`;
+      case 4:
+        return recallPhase === 'results'
+          ? 'Continue →'
+          : recallPhase === 'test'
+          ? 'Check answers above'
+          : 'Walk through in your mind';
+      case 5:
+        return 'Start your first workout →';
+      default:
+        return 'Continue →';
+    }
+  };
+
   return (
     <ScreenContainer contentContainerStyle={styles.container}>
       <Header
@@ -234,8 +259,8 @@ export const TechniqueLessonScreen: React.FC = () => {
               >
                 <Text style={styles.feedbackNoticeText}>
                   {chosenAssociation === 1
-                    ? '✨ Exactly. Vivid + unusual + action = almost impossible to forget.'
-                    : '💡 Ordinary scenes fade quickly. Try making it bizarre, oversized, or animated!'}
+                    ? '✨ Exactly. Unusual, vivid images are often easier to recall.'
+                    : '💡 Ordinary scenes fade quickly. Try making the image unusual, oversized, or animated.'}
                 </Text>
               </Card>
             )}
@@ -391,16 +416,16 @@ export const TechniqueLessonScreen: React.FC = () => {
             {recallPhase === 'prompt' && (
               <View style={styles.mentalPromptBox}>
                 <MaterialCommunityIcons name="eye-off-outline" size={44} color={colors.palace} />
-                <Text style={styles.stepTitle}>Walk through your palace</Text>
+                <Text style={styles.stepTitle}>Put your phone down</Text>
                 <Text style={styles.leadParagraph}>
-                  Close your eyes for 10 seconds.
+                  Close your eyes and walk through your palace once.
                 </Text>
                 <Text style={styles.bodyParagraph}>
-                  Walk through your front door, sofa, table, and bed in your mind. Notice what you placed at each spot.
+                  Check your front door, sofa, dining table, and bed in your mind. Notice the unusual items placed at each spot.
                 </Text>
 
                 <Button
-                  label="I walked through — Test My Memory →"
+                  label="Ready to recall →"
                   onPress={() => setRecallPhase('test')}
                   variant="palace"
                   style={{ marginTop: spacing.l }}
@@ -493,15 +518,35 @@ export const TechniqueLessonScreen: React.FC = () => {
         {activeStepIndex === 5 && (
           <View style={styles.stepSection}>
             <View style={styles.learnedBox}>
-              <MaterialCommunityIcons name="school" size={48} color={colors.palace} />
-              <Text style={styles.learnedTitle}>You've learned the Memory Palace 🎉</Text>
-              <Text style={styles.learnedDesc}>
-                You now know the exact mechanism: link unfamiliar information to familiar physical locations using vivid, bizarre imagery.
+              <MaterialCommunityIcons name="trophy-outline" size={44} color={colors.palace} />
+              <Text style={styles.learnedPreTitle}>🎉 YOU LEARNED YOUR FIRST TECHNIQUE</Text>
+              <Text style={styles.learnedTitle}>Memory Palace</Text>
+
+              <View style={styles.milestoneSkillsList}>
+                <Text style={styles.milestoneSkillsHeading}>You now know how to:</Text>
+                {[
+                  'Choose a familiar route',
+                  'Create vivid associations',
+                  'Place information in sequence',
+                  'Walk through your palace in your mind',
+                  'Recall the information without notes',
+                ].map((item, idx) => (
+                  <View key={idx} style={styles.milestoneSkillRow}>
+                    <MaterialCommunityIcons name="check" size={18} color={colors.success} />
+                    <Text style={styles.milestoneSkillText}>{item}</Text>
+                  </View>
+                ))}
+              </View>
+
+              <View style={styles.milestoneDivider} />
+
+              <Text style={styles.milestoneCoachQuote}>
+                Knowing the technique is step one.{'\n'}Training makes it yours.
               </Text>
             </View>
 
             <Card style={styles.realWorldCard}>
-              <Text style={styles.realWorldHeader}>Real-World Application</Text>
+              <Text style={styles.realWorldHeader}>Everyday Applications</Text>
               <View style={styles.applicationRow}>
                 <Text style={styles.appBullet}>•</Text>
                 <Text style={styles.appText}>Grocery runs without reaching for a phone</Text>
@@ -512,15 +557,8 @@ export const TechniqueLessonScreen: React.FC = () => {
               </View>
               <View style={styles.applicationRow}>
                 <Text style={styles.appBullet}>•</Text>
-                <Text style={styles.appText}>Memorizing daily to-dos in exact sequence</Text>
+                <Text style={styles.appText}>Memorizing daily tasks in exact order</Text>
               </View>
-            </Card>
-
-            <Card variant="tinted" tintColor={colors.palaceLight} style={styles.gymTransitionCard}>
-              <Text style={styles.gymTransitionTitle}>Now let's train it.</Text>
-              <Text style={styles.gymTransitionBody}>
-                Learning the concept takes 5 minutes. Building superhuman recall requires progressive workouts in the Gym.
-              </Text>
             </Card>
           </View>
         )}
@@ -529,7 +567,7 @@ export const TechniqueLessonScreen: React.FC = () => {
       {/* Bottom Floating Navigation Action */}
       <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 16) }]}>
         <Button
-          label={activeStepIndex === 5 ? 'Start Training →' : `Next Step →`}
+          label={getStepButtonLabel()}
           onPress={handleNextStep}
           disabled={!canProceed()}
           variant="palace"
@@ -919,8 +957,55 @@ const styles = StyleSheet.create({
     ...typography.headingL,
     fontSize: 20,
     textAlign: 'center',
+    marginTop: spacing.xs,
+    marginBottom: spacing.m,
+  },
+  learnedPreTitle: {
+    ...typography.caption,
+    color: colors.palace,
+    fontWeight: '700',
+    letterSpacing: 0.8,
     marginTop: spacing.m,
-    marginBottom: spacing.s,
+    marginBottom: 2,
+  },
+  milestoneSkillsList: {
+    width: '100%',
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: radius.l,
+    padding: spacing.l,
+    marginTop: spacing.s,
+    marginBottom: spacing.m,
+    gap: spacing.s,
+  },
+  milestoneSkillsHeading: {
+    ...typography.caption,
+    color: colors.textMuted,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  milestoneSkillRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.s,
+  },
+  milestoneSkillText: {
+    ...typography.bodyM,
+    color: colors.textPrimary,
+    fontWeight: '500',
+  },
+  milestoneDivider: {
+    height: 1,
+    backgroundColor: colors.border,
+    width: '80%',
+    marginVertical: spacing.s,
+  },
+  milestoneCoachQuote: {
+    ...typography.bodyM,
+    color: colors.palace,
+    fontWeight: '600',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginTop: spacing.xs,
   },
   learnedDesc: {
     ...typography.bodyM,

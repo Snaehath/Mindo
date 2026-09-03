@@ -139,7 +139,7 @@ export const OnboardingScreen: React.FC = () => {
 
               <View style={styles.footer}>
                 <Button
-                  label="I’m Ready to Recall →"
+                  label="Recall now →"
                   onPress={() => setTestPhase('test')}
                   variant="palace"
                 />
@@ -174,7 +174,7 @@ export const OnboardingScreen: React.FC = () => {
 
               <View style={styles.footer}>
                 <Button
-                  label="Submit Baseline"
+                  label="See your result →"
                   onPress={handleFinishTest}
                   disabled={selectedWords.length === 0}
                   variant="primary"
