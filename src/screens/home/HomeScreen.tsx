@@ -10,7 +10,7 @@ import { colors, typography, spacing, radius } from '../../theme';
 import { techniqueModules } from '../../data/lessonsData';
 
 export const HomeScreen: React.FC = () => {
-  const { profile, techniqueProgress, navigate } = useNavigation();
+  const { profile, techniqueProgress, navigate, activeRetentionMemory } = useNavigation();
 
   const getGreeting = (): string => {
     const hour = new Date().getHours();
@@ -73,23 +73,32 @@ export const HomeScreen: React.FC = () => {
 
   const todayTraining = getTodayTraining();
 
-  const getPercentage = (completedSteps: number, totalPractices: number) => {
-    const stepWeight = (completedSteps / 6) * 60; // 60% weight on lessons
-    const practiceWeight = Math.min(40, totalPractices * 10); // 40% weight on practices
-    return Math.min(100, Math.round(stepWeight + practiceWeight));
+  const getTechniqueStage = (
+    completedSteps: number,
+    totalPractices: number,
+    bestScore: number
+  ): string => {
+    if (completedSteps < 6) return 'Learning';
+    if (totalPractices < 3) return 'Practicing';
+    if (totalPractices < 7 || bestScore < 10) return 'Developing';
+    if (bestScore < 15) return 'Skilled';
+    return 'Strong';
   };
 
-  const palacePct = getPercentage(
+  const palaceStage = getTechniqueStage(
     techniqueProgress.palace.completedSteps,
-    techniqueProgress.palace.totalPractices
+    techniqueProgress.palace.totalPractices,
+    techniqueProgress.palace.bestScore
   );
-  const linkingPct = getPercentage(
+  const linkingStage = getTechniqueStage(
     techniqueProgress.linking.completedSteps,
-    techniqueProgress.linking.totalPractices
+    techniqueProgress.linking.totalPractices,
+    techniqueProgress.linking.bestScore
   );
-  const pegPct = getPercentage(
+  const pegStage = getTechniqueStage(
     techniqueProgress.peg.completedSteps,
-    techniqueProgress.peg.totalPractices
+    techniqueProgress.peg.totalPractices,
+    techniqueProgress.peg.bestScore
   );
 
   return (
@@ -109,6 +118,42 @@ export const HomeScreen: React.FC = () => {
       </View>
 
       <Text style={styles.quoteSub}>5 minutes today can make a difference.</Text>
+
+      {/* Spaced Retention Memory Check-in */}
+      {activeRetentionMemory && (
+        <Card
+          variant="tinted"
+          tintColor={colors.palaceLight}
+          style={styles.retentionHomeCard}
+        >
+          <View style={styles.retentionHeaderRow}>
+            <View style={styles.retentionBadge}>
+              <MaterialCommunityIcons name="calendar-clock" size={14} color={colors.palace} />
+              <Text style={styles.retentionBadgeText}>
+                DAY {activeRetentionMemory.currentIntervalDay} RETENTION CHECK-IN
+              </Text>
+            </View>
+            <Text style={styles.retentionItemCount}>
+              {activeRetentionMemory.items.length} items
+            </Text>
+          </View>
+
+          <Text style={styles.retentionCardTitle}>
+            Can you walk through your palace?
+          </Text>
+          <Text style={styles.retentionCardSubtitle}>
+            {activeRetentionMemory.items.length} items are stored in {activeRetentionMemory.palaceName}. Walk through from memory and see how many still hold.
+          </Text>
+
+          <View style={styles.heroButtonWrap}>
+            <Button
+              label={`Recall ${activeRetentionMemory.items.length} Items →`}
+              onPress={() => navigate('delayedRecall', { memoryId: activeRetentionMemory.id })}
+              variant="palace"
+            />
+          </View>
+        </Card>
+      )}
 
       {/* Primary Card: Today's Training */}
       <View style={styles.sectionHeader}>
@@ -166,9 +211,15 @@ export const HomeScreen: React.FC = () => {
               <MaterialCommunityIcons name="castle" size={18} color={colors.palace} />
               <Text style={styles.techName}>Memory Palace</Text>
             </View>
-            <Text style={styles.techPercent}>{palacePct}%</Text>
+            <View style={[styles.stageChip, { backgroundColor: colors.palaceLight }]}>
+              <Text style={[styles.stageChipText, { color: colors.palace }]}>{palaceStage}</Text>
+            </View>
           </View>
-          <ProgressBar progress={palacePct / 100} color={colors.palace} height={8} />
+          {techniqueProgress.palace.bestScore > 0 && (
+            <Text style={styles.personalBestHomeText}>
+              Personal best: {techniqueProgress.palace.bestScore} items
+            </Text>
+          )}
         </TouchableOpacity>
 
         <View style={styles.divider} />
@@ -184,9 +235,15 @@ export const HomeScreen: React.FC = () => {
               <MaterialCommunityIcons name="link-variant" size={18} color={colors.linking} />
               <Text style={styles.techName}>Linking</Text>
             </View>
-            <Text style={styles.techPercent}>{linkingPct}%</Text>
+            <View style={[styles.stageChip, { backgroundColor: colors.linkingLight }]}>
+              <Text style={[styles.stageChipText, { color: colors.linking }]}>{linkingStage}</Text>
+            </View>
           </View>
-          <ProgressBar progress={linkingPct / 100} color={colors.linking} height={8} />
+          {techniqueProgress.linking.bestScore > 0 && (
+            <Text style={styles.personalBestHomeText}>
+              Personal best: {techniqueProgress.linking.bestScore} items
+            </Text>
+          )}
         </TouchableOpacity>
 
         <View style={styles.divider} />
@@ -202,9 +259,15 @@ export const HomeScreen: React.FC = () => {
               <MaterialCommunityIcons name="format-list-numbered" size={18} color={colors.peg} />
               <Text style={styles.techName}>Peg System</Text>
             </View>
-            <Text style={styles.techPercent}>{pegPct}%</Text>
+            <View style={[styles.stageChip, { backgroundColor: colors.pegLight }]}>
+              <Text style={[styles.stageChipText, { color: colors.peg }]}>{pegStage}</Text>
+            </View>
           </View>
-          <ProgressBar progress={pegPct / 100} color={colors.peg} height={8} />
+          {techniqueProgress.peg.bestScore > 0 && (
+            <Text style={styles.personalBestHomeText}>
+              Personal best: {techniqueProgress.peg.bestScore} items
+            </Text>
+          )}
         </TouchableOpacity>
       </Card>
 
@@ -272,6 +335,46 @@ const styles = StyleSheet.create({
     ...typography.headingM,
     color: colors.textPrimary,
   },
+  retentionHomeCard: {
+    padding: spacing.xl,
+    borderRadius: radius.xl,
+    marginBottom: spacing.xxl,
+    borderWidth: 1.5,
+    borderColor: colors.palace,
+  },
+  retentionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.s,
+  },
+  retentionBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  retentionBadgeText: {
+    ...typography.caption,
+    color: colors.palace,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+  },
+  retentionItemCount: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    fontWeight: '600',
+  },
+  retentionCardTitle: {
+    ...typography.headingL,
+    color: colors.textPrimary,
+    marginBottom: spacing.xs,
+  },
+  retentionCardSubtitle: {
+    ...typography.bodyM,
+    color: colors.textSecondary,
+    lineHeight: 22,
+    marginBottom: spacing.l,
+  },
   heroCard: {
     padding: spacing.xl,
     borderRadius: radius.xl,
@@ -330,6 +433,21 @@ const styles = StyleSheet.create({
     ...typography.bodyS,
     fontWeight: '700',
     color: colors.textSecondary,
+  },
+  stageChip: {
+    paddingVertical: 2,
+    paddingHorizontal: 8,
+    borderRadius: radius.pill,
+  },
+  stageChipText: {
+    ...typography.caption,
+    fontWeight: '700',
+    fontSize: 11,
+  },
+  personalBestHomeText: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    marginTop: 2,
   },
   divider: {
     height: 1,

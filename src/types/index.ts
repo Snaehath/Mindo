@@ -48,11 +48,37 @@ export interface PracticeAttempt {
   timestamp: string;
 }
 
+export interface RetentionReview {
+  reviewDate: string;
+  intervalDay: number; // 1, 3, 7, 14, 30
+  score: number;
+  total: number;
+}
+
+export interface ActiveRetentionMemory {
+  id: string;
+  palaceId: string;
+  palaceName: string;
+  encodedDate: string;
+  items: {
+    spotIndex: number;
+    spotName: string;
+    word: string;
+    emoji: string;
+    bizarreHint?: string;
+  }[];
+  reviews: RetentionReview[];
+  nextReviewDate: string; // ISO string
+  currentIntervalDay: number; // 1, 3, 7, 14, 30
+  status: 'active' | 'graduated';
+}
+
 export interface AppStateData {
   profile: UserProfile;
   techniqueProgress: Record<TechniqueType, TechniqueProgress>;
   palaces: UserPalace[];
   practiceHistory: PracticeAttempt[];
+  retentionMemories: ActiveRetentionMemory[];
 }
 
 export type ScreenName =
@@ -63,7 +89,8 @@ export type ScreenName =
   | 'palaceBuilder'
   | 'practice'
   | 'practiceSession'
-  | 'progress';
+  | 'progress'
+  | 'delayedRecall';
 
 export interface NavigationState {
   currentScreen: ScreenName;

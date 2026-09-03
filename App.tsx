@@ -16,6 +16,7 @@ import { PalaceBuilderScreen } from './src/screens/learn/PalaceBuilderScreen';
 import { PracticeScreen } from './src/screens/practice/PracticeScreen';
 import { PracticeSessionScreen } from './src/screens/practice/PracticeSessionScreen';
 import { ProgressScreen } from './src/screens/progress/ProgressScreen';
+import { DelayedRecallScreen } from './src/screens/practice/DelayedRecallScreen';
 
 const RootContent: React.FC = () => {
   const { currentScreen, activeTab, switchTab, isLoading } = useNavigation();
@@ -44,6 +45,8 @@ const RootContent: React.FC = () => {
         return <PracticeScreen />;
       case 'practiceSession':
         return <PracticeSessionScreen />;
+      case 'delayedRecall':
+        return <DelayedRecallScreen />;
       case 'progress':
         return <ProgressScreen />;
       default:

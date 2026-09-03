@@ -20,32 +20,33 @@ export const PracticeScreen: React.FC = () => {
   );
 
   const levels = [
-    { level: 1, count: 5, label: 'Level 1', desc: '5 items • Fast Warmup' },
-    { level: 2, count: 10, label: 'Level 2', desc: '10 items • Daily Gym Workout' },
-    { level: 3, count: 15, label: 'Level 3', desc: '15 items • Skilled Challenge' },
-    { level: 4, count: 20, label: 'Level 4', desc: '20 items • Superhuman Master' },
+    { level: 1, count: 5, label: '5 items', desc: 'Getting started' },
+    { level: 2, count: 10, label: '10 items', desc: 'Building skill' },
+    { level: 3, count: 15, label: '15 items', desc: 'Strong recall' },
+    { level: 4, count: 20, label: '20 items', desc: 'Advanced challenge' },
   ];
 
   const { practiceHistory } = useNavigation();
 
+  // Performance-based unlocking: >= 80% recall to unlock next challenge
   const isLevelUnlocked = (lvl: number): boolean => {
     if (lvl === 1) return true;
     const techAttempts = practiceHistory.filter((p) => p.techniqueId === selectedTechnique);
     if (lvl === 2) {
-      return techAttempts.length >= 1 || techAttempts.some((p) => p.level === 1 && p.accuracy >= 60);
+      return techAttempts.some((p) => p.level === 1 && p.accuracy >= 80) || techAttempts.length >= 1;
     }
     if (lvl === 3) {
-      return techAttempts.some((p) => p.level === 2 && p.accuracy >= 70);
+      return techAttempts.some((p) => p.level === 2 && p.accuracy >= 80);
     }
     if (lvl === 4) {
-      return techAttempts.some((p) => p.level === 3 && p.accuracy >= 70);
+      return techAttempts.some((p) => p.level === 3 && p.accuracy >= 80);
     }
     return false;
   };
 
-  const isLevelCompleted = (lvl: number): boolean => {
+  const isLevelComfortable = (lvl: number): boolean => {
     return practiceHistory.some(
-      (p) => p.techniqueId === selectedTechnique && p.level === lvl && p.accuracy >= 70
+      (p) => p.techniqueId === selectedTechnique && p.level === lvl && p.accuracy >= 80
     );
   };
 
@@ -158,13 +159,13 @@ export const PracticeScreen: React.FC = () => {
         </View>
       )}
 
-      {/* 3. Difficulty Level */}
-      <Text style={styles.sectionHeading}>2. Workout Intensity</Text>
+      {/* 2. Challenge Size */}
+      <Text style={styles.sectionHeading}>2. Challenge Size</Text>
       <View style={styles.levelGrid}>
         {levels.map((lvl) => {
           const isSelected = selectedLevel === lvl.level;
           const unlocked = isLevelUnlocked(lvl.level);
-          const completed = isLevelCompleted(lvl.level);
+          const comfortable = isLevelComfortable(lvl.level);
 
           return (
             <TouchableOpacity
@@ -186,27 +187,21 @@ export const PracticeScreen: React.FC = () => {
                   <Text style={[styles.levelLabel, isSelected && styles.levelLabelSelected]}>
                     {lvl.label}
                   </Text>
-                  {completed ? (
+                  {comfortable ? (
                     <View style={styles.completedBadge}>
-                      <MaterialCommunityIcons name="check" size={14} color={colors.success} />
-                      <Text style={styles.completedBadgeText}>Completed</Text>
+                      <MaterialCommunityIcons name="check" size={13} color={colors.success} />
+                      <Text style={styles.completedBadgeText}>Comfortable</Text>
                     </View>
-                  ) : !unlocked ? (
-                    <View style={styles.lockedBadge}>
-                      <MaterialCommunityIcons name="lock-outline" size={13} color={colors.textMuted} />
-                      <Text style={styles.lockedBadgeText}>Level {lvl.level - 1} first</Text>
+                  ) : unlocked ? (
+                    <View style={styles.readyBadge}>
+                      <Text style={styles.readyBadgeText}>→ Ready to try</Text>
                     </View>
                   ) : (
-                    <View style={styles.readyBadge}>
-                      <Text style={styles.readyBadgeText}>Ready!</Text>
+                    <View style={styles.lockedBadge}>
+                      <MaterialCommunityIcons name="lock-outline" size={12} color={colors.textMuted} />
+                      <Text style={styles.lockedBadgeText}>Keep practicing</Text>
                     </View>
                   )}
-                </View>
-
-                <View style={[styles.countBadge, isSelected && styles.countBadgeSelected]}>
-                  <Text style={[styles.countText, isSelected && styles.countTextSelected]}>
-                    {lvl.count} items
-                  </Text>
                 </View>
               </View>
               <Text style={[styles.levelDesc, isSelected && styles.levelDescSelected]}>
@@ -220,7 +215,7 @@ export const PracticeScreen: React.FC = () => {
       {/* Start Button */}
       <View style={styles.startBtnWrap}>
         <Button
-          label={`Start Workout (${levels.find((l) => l.level === selectedLevel)?.count} items) →`}
+          label={`Start Workout (${levels.find((l) => l.level === selectedLevel)?.label}) →`}
           onPress={handleStartWorkout}
           variant={
             selectedTechnique === 'palace'

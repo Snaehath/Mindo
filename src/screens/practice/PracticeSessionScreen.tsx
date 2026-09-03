@@ -14,7 +14,15 @@ import { TechniqueType, UserPalace } from '../../types';
 
 export const PracticeSessionScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
-  const { params, goBack, palaces, recordPracticeAttempt, profile } = useNavigation();
+  const {
+    params,
+    goBack,
+    palaces,
+    recordPracticeAttempt,
+    profile,
+    techniqueProgress,
+    saveRetentionMemory,
+  } = useNavigation();
 
   const techniqueId: TechniqueType = params?.techniqueId || 'palace';
   const level: number = params?.level || 1;
@@ -22,6 +30,7 @@ export const PracticeSessionScreen: React.FC = () => {
   const palaceId: string = params?.palaceId || palaces[0]?.id;
 
   const currentPalace: UserPalace | undefined = palaces.find((p) => p.id === palaceId) || palaces[0];
+  const previousBest = techniqueProgress[techniqueId]?.bestScore || 0;
 
   const items: PracticeItem[] = useMemo(() => {
     return getPracticeItems(itemCount);
@@ -145,6 +154,30 @@ export const PracticeSessionScreen: React.FC = () => {
         accuracy,
         timestamp: new Date().toISOString(),
       });
+
+      if (techniqueId === 'palace') {
+        const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+        saveRetentionMemory({
+          id: `retention_${Date.now()}`,
+          palaceId: currentPalace?.id || 'palace_home_default',
+          palaceName: currentPalace?.name || 'My Home Palace',
+          encodedDate: new Date().toISOString(),
+          items: items.map((it, idx) => {
+            const spot = currentPalace?.spots[idx % (currentPalace?.spots?.length || 1)];
+            return {
+              spotIndex: idx,
+              spotName: spot?.name || `Spot #${idx + 1}`,
+              word: it.word,
+              emoji: it.emoji,
+              bizarreHint: it.bizarreHint,
+            };
+          }),
+          reviews: [],
+          nextReviewDate: tomorrow,
+          currentIntervalDay: 1,
+          status: 'active',
+        });
+      }
 
       setPhase('result');
     }
@@ -375,6 +408,17 @@ export const PracticeSessionScreen: React.FC = () => {
               ? 'Flawless Recall 🎉'
               : 'Workout Complete 🧠'}
           </Text>
+
+          {/* Personal Best Moment */}
+          {sessionScore.correct > previousBest && sessionScore.correct >= 5 && (
+            <Card variant="tinted" tintColor={colors.palaceLight} style={styles.pbCard}>
+              <Text style={styles.pbTag}>NEW PERSONAL BEST! 🎉</Text>
+              <Text style={styles.pbNumber}>{sessionScore.correct} items recalled</Text>
+              {previousBest > 0 && (
+                <Text style={styles.pbPrevious}>Previous best: {previousBest} items</Text>
+              )}
+            </Card>
+          )}
 
           {/* Coach Feedback */}
           <Card variant="tinted" tintColor={colors.surfaceMuted} style={styles.coachResultCard}>
@@ -718,6 +762,31 @@ const styles = StyleSheet.create({
   breakdownWrongText: {
     ...typography.bodyS,
     color: colors.danger,
+  },
+  pbCard: {
+    padding: spacing.l,
+    borderRadius: radius.l,
+    marginBottom: spacing.l,
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: colors.palace,
+  },
+  pbTag: {
+    ...typography.caption,
+    color: colors.palace,
+    fontWeight: '800',
+    letterSpacing: 1,
+    marginBottom: 4,
+  },
+  pbNumber: {
+    ...typography.headingL,
+    fontSize: 22,
+    color: colors.textPrimary,
+  },
+  pbPrevious: {
+    ...typography.bodyS,
+    color: colors.textSecondary,
+    marginTop: 2,
   },
   coachResultCard: {
     padding: spacing.l,

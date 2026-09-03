@@ -7,6 +7,7 @@ const STORAGE_KEYS = {
   TECHNIQUES: '@mindo_techniques_v1',
   PALACES: '@mindo_palaces_v1',
   HISTORY: '@mindo_history_v1',
+  RETENTION: '@mindo_retention_v1',
 };
 
 const defaultProfile: UserProfile = {
@@ -46,11 +47,12 @@ const defaultTechniqueProgress: Record<TechniqueType, TechniqueProgress> = {
 export const StorageService = {
   async loadAllData(): Promise<AppStateData> {
     try {
-      const [profileRaw, techRaw, palacesRaw, histRaw] = await Promise.all([
+      const [profileRaw, techRaw, palacesRaw, histRaw, retRaw] = await Promise.all([
         AsyncStorage.getItem(STORAGE_KEYS.PROFILE),
         AsyncStorage.getItem(STORAGE_KEYS.TECHNIQUES),
         AsyncStorage.getItem(STORAGE_KEYS.PALACES),
         AsyncStorage.getItem(STORAGE_KEYS.HISTORY),
+        AsyncStorage.getItem(STORAGE_KEYS.RETENTION),
       ]);
 
       const profile: UserProfile = profileRaw ? JSON.parse(profileRaw) : defaultProfile;
@@ -59,6 +61,7 @@ export const StorageService = {
         : defaultTechniqueProgress;
       const palaces: UserPalace[] = palacesRaw ? JSON.parse(palacesRaw) : defaultPalaces;
       const practiceHistory: PracticeAttempt[] = histRaw ? JSON.parse(histRaw) : [];
+      const retentionMemories = retRaw ? JSON.parse(retRaw) : [];
 
       // Update streak if today is a new active day
       const today = new Date().toISOString().split('T')[0];
@@ -80,6 +83,7 @@ export const StorageService = {
         techniqueProgress,
         palaces,
         practiceHistory,
+        retentionMemories,
       };
     } catch (e) {
       console.warn('Storage load failed, returning defaults', e);
@@ -88,8 +92,13 @@ export const StorageService = {
         techniqueProgress: defaultTechniqueProgress,
         palaces: defaultPalaces,
         practiceHistory: [],
+        retentionMemories: [],
       };
     }
+  },
+
+  async saveRetentionMemories(memories: any[]): Promise<void> {
+    await AsyncStorage.setItem(STORAGE_KEYS.RETENTION, JSON.stringify(memories));
   },
 
   async saveProfile(profile: UserProfile): Promise<void> {
@@ -160,6 +169,7 @@ export const StorageService = {
       techniqueProgress: defaultTechniqueProgress,
       palaces: defaultPalaces,
       practiceHistory: [],
+      retentionMemories: [],
     };
   },
 };

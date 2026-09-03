@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import {
+  ActiveRetentionMemory,
   AppStateData,
   MasteryLevel,
   PracticeAttempt,
@@ -26,10 +27,14 @@ interface NavigationContextType {
   techniqueProgress: Record<TechniqueType, TechniqueProgress>;
   palaces: UserPalace[];
   practiceHistory: PracticeAttempt[];
+  retentionMemories: ActiveRetentionMemory[];
+  activeRetentionMemory: ActiveRetentionMemory | undefined;
   updateProfile: (profile: Partial<UserProfile>) => Promise<void>;
   updatePalaces: (palaces: UserPalace[]) => Promise<void>;
   updateTechniqueStep: (tech: TechniqueType, step: number) => Promise<void>;
   recordPracticeAttempt: (attempt: PracticeAttempt) => Promise<void>;
+  saveRetentionMemory: (memory: ActiveRetentionMemory) => Promise<void>;
+  recordRetentionReview: (memoryId: string, score: number, total: number) => Promise<void>;
   resetAllData: () => Promise<void>;
 }
 
@@ -77,6 +82,7 @@ export const NavigationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     },
     palaces: [],
     practiceHistory: [],
+    retentionMemories: [],
   });
 
   useEffect(() => {
@@ -169,6 +175,49 @@ export const NavigationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }));
   };
 
+  const saveRetentionMemory = async (memory: ActiveRetentionMemory) => {
+    const existingIdx = (data.retentionMemories || []).findIndex((m) => m.id === memory.id);
+    let updated: ActiveRetentionMemory[];
+    if (existingIdx >= 0) {
+      updated = [...data.retentionMemories];
+      updated[existingIdx] = memory;
+    } else {
+      updated = [memory, ...(data.retentionMemories || [])];
+    }
+    await StorageService.saveRetentionMemories(updated);
+    setData((prev) => ({ ...prev, retentionMemories: updated }));
+  };
+
+  const recordRetentionReview = async (memoryId: string, score: number, total: number) => {
+    const memory = (data.retentionMemories || []).find((m) => m.id === memoryId);
+    if (!memory) return;
+
+    const currentInterval = memory.currentIntervalDay;
+    const intervalMap: Record<number, number> = { 1: 3, 3: 7, 7: 14, 14: 30 };
+    const nextInterval = intervalMap[currentInterval] || 30;
+    const isGraduated = currentInterval >= 30;
+
+    const nextDate = new Date(Date.now() + nextInterval * 24 * 60 * 60 * 1000).toISOString();
+    const newReview = {
+      reviewDate: new Date().toISOString(),
+      intervalDay: currentInterval,
+      score,
+      total,
+    };
+
+    const updatedMemory: ActiveRetentionMemory = {
+      ...memory,
+      reviews: [...memory.reviews, newReview],
+      currentIntervalDay: nextInterval,
+      nextReviewDate: nextDate,
+      status: isGraduated ? 'graduated' : 'active',
+    };
+
+    await saveRetentionMemory(updatedMemory);
+  };
+
+  const activeRetentionMemory = (data.retentionMemories || []).find((m) => m.status === 'active') || data.retentionMemories?.[0];
+
   const resetAllData = async () => {
     const fresh = await StorageService.resetAll();
     setData(fresh);
@@ -192,10 +241,14 @@ export const NavigationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         techniqueProgress: data.techniqueProgress,
         palaces: data.palaces,
         practiceHistory: data.practiceHistory,
+        retentionMemories: data.retentionMemories || [],
+        activeRetentionMemory,
         updateProfile,
         updatePalaces,
         updateTechniqueStep,
         recordPracticeAttempt,
+        saveRetentionMemory,
+        recordRetentionReview,
         resetAllData,
       }}
     >
