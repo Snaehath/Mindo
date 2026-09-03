@@ -1,45 +1,52 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '../../navigation/NavigationContext';
 import { ScreenContainer } from '../../components/ScreenContainer';
 import { Button } from '../../components/Button';
 import { Card } from '../../components/Card';
-import { StepBar } from '../../components/ProgressBar';
 import { colors, typography, spacing, radius } from '../../theme';
 import { baselineTestWords } from '../../data/practiceData';
 
 export const OnboardingScreen: React.FC = () => {
+  const insets = useSafeAreaInsets();
   const { updateProfile, navigate } = useNavigation();
-  const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4>(1);
 
-  // Step 3 state (Baseline Test)
-  const [testPhase, setTestPhase] = useState<'memorize' | 'test' | 'done'>('memorize');
+  // 1: Welcome (combined) | 2: Baseline Test | 3: Baseline Result
+  const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
+
+  // Step 2 state (Baseline Test)
+  const [testPhase, setTestPhase] = useState<'memorize' | 'test'>('memorize');
   const [selectedWords, setSelectedWords] = useState<string[]>([]);
   const [baselineResult, setBaselineResult] = useState<{ recalled: number; total: number }>({
     recalled: 0,
-    total: 5,
+    total: 8,
   });
 
-  // Candidate options for test recall (5 target + 5 distractors)
+  // Candidate options for test recall (8 targets + 6 distractors)
   const allOptions = [
-    { word: 'Candle', emoji: '🕯️', isTarget: true },
-    { word: 'Mirror', emoji: '🪞', isTarget: true },
-    { word: 'Banana', emoji: '🍌', isTarget: false },
-    { word: 'Key', emoji: '🔑', isTarget: true },
-    { word: 'Guitar', emoji: '🎸', isTarget: false },
-    { word: 'Apple', emoji: '🍎', isTarget: true },
-    { word: 'Rocket', emoji: '🚀', isTarget: false },
-    { word: 'Book', emoji: '📖', isTarget: true },
-    { word: 'Shoe', emoji: '👟', isTarget: false },
-    { word: 'Watch', emoji: '⌚', isTarget: false },
+    { word: 'Candle', emoji: '🕯️' },
+    { word: 'Diamond', emoji: '💎' },
+    { word: 'Mirror', emoji: '🪞' },
+    { word: 'Key', emoji: '🔑' },
+    { word: 'Elephant', emoji: '🐘' },
+    { word: 'Apple', emoji: '🍎' },
+    { word: 'Guitar', emoji: '🎸' },
+    { word: 'Pineapple', emoji: '🍍' },
+    { word: 'Rocket', emoji: '🚀' },
+    { word: 'Banana', emoji: '🍌' },
+    { word: 'Shoe', emoji: '👟' },
+    { word: 'Watch', emoji: '⌚' },
+    { word: 'Book', emoji: '📖' },
+    { word: 'Coffee', emoji: '☕' },
   ];
 
   const handleToggleWord = (word: string) => {
     if (selectedWords.includes(word)) {
       setSelectedWords(selectedWords.filter((w) => w !== word));
     } else {
-      if (selectedWords.length < 5) {
+      if (selectedWords.length < 8) {
         setSelectedWords([...selectedWords, word]);
       }
     }
@@ -48,9 +55,8 @@ export const OnboardingScreen: React.FC = () => {
   const handleFinishTest = () => {
     const targets = baselineTestWords.map((w) => w.word);
     const correctCount = selectedWords.filter((w) => targets.includes(w)).length;
-    setBaselineResult({ recalled: correctCount, total: 5 });
-    setTestPhase('done');
-    setCurrentStep(4);
+    setBaselineResult({ recalled: correctCount, total: 8 });
+    setCurrentStep(3);
   };
 
   const handleFinishOnboarding = async () => {
@@ -62,117 +68,72 @@ export const OnboardingScreen: React.FC = () => {
         date: new Date().toISOString(),
       },
     });
-    // Open Memory Palace technique lesson
     navigate('techniqueDetail', { techniqueId: 'palace' });
   };
 
   return (
-    <ScreenContainer scrollable contentContainerStyle={styles.container}>
-      {/* Top Step Indicator */}
-      <View style={styles.topBar}>
-        <StepBar currentStep={currentStep} totalSteps={4} color={colors.palace} />
-      </View>
-
-      {/* Screen 1: Welcome */}
+    <ScreenContainer
+      scrollable
+      contentContainerStyle={[
+        styles.container,
+        { paddingBottom: Math.max(insets.bottom, 24) + 20 },
+      ]}
+    >
+      {/* Screen 1: Combined Fast Welcome */}
       {currentStep === 1 && (
         <View style={styles.stepContainer}>
           <View style={styles.iconCircle}>
-            <MaterialCommunityIcons name="brain" size={48} color={colors.palace} />
+            <MaterialCommunityIcons name="brain" size={44} color={colors.palace} />
           </View>
-          <Text style={styles.title}>Welcome to Memory Training</Text>
-          <Text style={styles.description}>
-            Learn simple, proven techniques that turn your everyday brain into a reliable memory palace.
+          <Text style={styles.title}>Train your memory</Text>
+          <Text style={styles.punchyTagline}>
+            Learn simple techniques.{'\n'}
+            Practice them.{'\n'}
+            Remember more.
           </Text>
 
-          <Card variant="tinted" tintColor={colors.palaceLight} style={styles.quoteCard}>
-            <Text style={styles.quoteText}>
-              "Memory is not an innate gift — it is a learnable physical skill."
-            </Text>
+          <Card variant="tinted" tintColor={colors.palaceLight} style={styles.fastIntroCard}>
+            <View style={styles.routineRow}>
+              <Text style={styles.routineDot}>•</Text>
+              <Text style={styles.routineText}>No boring theory or lectures</Text>
+            </View>
+            <View style={styles.routineRow}>
+              <Text style={styles.routineDot}>•</Text>
+              <Text style={styles.routineText}>Interactive drills for real recall</Text>
+            </View>
+            <View style={styles.routineRow}>
+              <Text style={styles.routineDot}>•</Text>
+              <Text style={styles.routineText}>100% offline, private & focused</Text>
+            </View>
           </Card>
 
           <View style={styles.footer}>
             <Button
-              label="Get Started"
+              label="Get Started →"
               onPress={() => setCurrentStep(2)}
-              iconName="arrow-right"
-              iconRight
+              variant="palace"
             />
           </View>
         </View>
       )}
 
-      {/* Screen 2: How It Works */}
+      {/* Screen 2: Tiny Baseline Test */}
       {currentStep === 2 && (
-        <View style={styles.stepContainer}>
-          <Text style={styles.title}>How it works</Text>
-          <Text style={styles.description}>
-            A simple 3-part gym routine designed for real skill acquisition.
-          </Text>
-
-          <View style={styles.flowList}>
-            <Card style={styles.flowCard}>
-              <View style={styles.flowRow}>
-                <View style={[styles.stepNum, { backgroundColor: colors.palaceLight }]}>
-                  <Text style={[styles.stepNumText, { color: colors.palace }]}>1</Text>
-                </View>
-                <View style={styles.flowTextContainer}>
-                  <Text style={styles.flowTitle}>Learn</Text>
-                  <Text style={styles.flowSubtitle}>Understand the core mental mechanism in seconds.</Text>
-                </View>
-              </View>
-            </Card>
-
-            <Card style={styles.flowCard}>
-              <View style={styles.flowRow}>
-                <View style={[styles.stepNum, { backgroundColor: colors.linkingLight }]}>
-                  <Text style={[styles.stepNumText, { color: colors.linking }]}>2</Text>
-                </View>
-                <View style={styles.flowTextContainer}>
-                  <Text style={styles.flowTitle}>Practice</Text>
-                  <Text style={styles.flowSubtitle}>Imprint items using vivid, bizarre associations.</Text>
-                </View>
-              </View>
-            </Card>
-
-            <Card style={styles.flowCard}>
-              <View style={styles.flowRow}>
-                <View style={[styles.stepNum, { backgroundColor: colors.pegLight }]}>
-                  <Text style={[styles.stepNumText, { color: colors.peg }]}>3</Text>
-                </View>
-                <View style={styles.flowTextContainer}>
-                  <Text style={styles.flowTitle}>Recall</Text>
-                  <Text style={styles.flowSubtitle}>Retrieve items effortlessly and see measurable growth.</Text>
-                </View>
-              </View>
-            </Card>
-          </View>
-
-          <View style={styles.footer}>
-            <Button
-              label="Test Your Baseline →"
-              onPress={() => setCurrentStep(3)}
-            />
-          </View>
-        </View>
-      )}
-
-      {/* Screen 3: Baseline Memory Challenge */}
-      {currentStep === 3 && (
         <View style={styles.stepContainer}>
           {testPhase === 'memorize' ? (
             <>
-              <Text style={styles.title}>Your Baseline Challenge</Text>
+              <Text style={styles.stepIndicator}>BASELINE TEST</Text>
+              <Text style={styles.title}>Let's see how you remember naturally</Text>
               <Text style={styles.description}>
-                Remember these 5 words using your natural memory. No tricks yet.
+                Take 15 seconds to look at these 8 items. No tricks yet — just your raw memory.
               </Text>
 
-              <View style={styles.wordListContainer}>
+              <View style={styles.wordGrid}>
                 {baselineTestWords.map((item, idx) => (
-                  <Card key={item.id} style={styles.wordItemCard}>
-                    <Text style={styles.wordIndex}>#{idx + 1}</Text>
+                  <View key={item.id} style={styles.wordTile}>
                     <Text style={styles.wordEmoji}>{item.emoji}</Text>
                     <Text style={styles.wordText}>{item.word}</Text>
-                  </Card>
+                  </View>
                 ))}
               </View>
 
@@ -186,9 +147,10 @@ export const OnboardingScreen: React.FC = () => {
             </>
           ) : (
             <>
-              <Text style={styles.title}>Which words were on the list?</Text>
+              <Text style={styles.stepIndicator}>BASELINE TEST</Text>
+              <Text style={styles.title}>What do you remember?</Text>
               <Text style={styles.description}>
-                Tap the 5 items you saw ({selectedWords.length}/5 selected).
+                Tap the items you remember ({selectedWords.length}/8 selected).
               </Text>
 
               <View style={styles.optionsGrid}>
@@ -215,6 +177,7 @@ export const OnboardingScreen: React.FC = () => {
                   label="Submit Baseline"
                   onPress={handleFinishTest}
                   disabled={selectedWords.length === 0}
+                  variant="primary"
                 />
               </View>
             </>
@@ -222,30 +185,34 @@ export const OnboardingScreen: React.FC = () => {
         </View>
       )}
 
-      {/* Screen 4: Baseline Result & Next Action */}
-      {currentStep === 4 && (
+      {/* Screen 3: Baseline Result & Kickoff */}
+      {currentStep === 3 && (
         <View style={styles.stepContainer}>
-          <View style={[styles.iconCircle, { backgroundColor: colors.palaceLight }]}>
+          <View style={styles.iconCircle}>
             <Text style={styles.baselineScoreText}>
               {baselineResult.recalled}/{baselineResult.total}
             </Text>
           </View>
 
-          <Text style={styles.title}>Baseline Established</Text>
+          <Text style={styles.title}>That's your starting point</Text>
           <Text style={styles.description}>
-            You recalled {baselineResult.recalled} of 5 items using raw repetition.
+            You recalled {baselineResult.recalled} of 8 items without techniques.
           </Text>
 
-          <Card variant="tinted" tintColor={colors.surfaceMuted} style={styles.improvementCard}>
-            <MaterialCommunityIcons name="lightning-bolt" size={28} color={colors.palace} />
-            <Text style={styles.improvementTitle}>The Training Effect</Text>
-            <Text style={styles.improvementSub}>
-              By linking items to a Memory Palace, your capacity will jump from 3–5 items to 10, 20, or even 50 items in exact chronological order.
+          <Card variant="tinted" tintColor={colors.surfaceMuted} style={styles.trainingEffectCard}>
+            <Text style={styles.trainingEffectHeader}>The Training Effect</Text>
+            <Text style={styles.trainingEffectBody}>
+              Your brain already remembers places remarkably well.
+            </Text>
+            <Text style={[styles.trainingEffectBody, { marginTop: spacing.s }]}>
+              A Memory Palace lets you use familiar places as anchors for new information.
+            </Text>
+            <Text style={[styles.trainingEffectBody, { marginTop: spacing.s, fontWeight: '600', color: colors.textPrimary }]}>
+              Let's see what you can do with it.
             </Text>
           </Card>
 
           <View style={styles.footer}>
-            <Text style={styles.startTechniqueLabel}>First Training Module:</Text>
             <Button
               label="Start Memory Palace →"
               onPress={handleFinishOnboarding}
@@ -260,15 +227,19 @@ export const OnboardingScreen: React.FC = () => {
 
 const styles = StyleSheet.create({
   container: {
-    paddingTop: spacing.m,
+    paddingTop: spacing.xl,
     paddingBottom: spacing.xxl,
-  },
-  topBar: {
-    marginBottom: spacing.xl,
   },
   stepContainer: {
     alignItems: 'center',
     width: '100%',
+  },
+  stepIndicator: {
+    ...typography.caption,
+    color: colors.palace,
+    fontWeight: '700',
+    letterSpacing: 1,
+    marginBottom: spacing.s,
   },
   iconCircle: {
     width: 80,
@@ -278,6 +249,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: spacing.xl,
+    marginTop: spacing.m,
   },
   baselineScoreText: {
     ...typography.headingXL,
@@ -287,87 +259,71 @@ const styles = StyleSheet.create({
   title: {
     ...typography.headingXL,
     textAlign: 'center',
-    marginBottom: spacing.m,
+    marginBottom: spacing.s,
+    paddingHorizontal: spacing.s,
+  },
+  punchyTagline: {
+    ...typography.headingM,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 28,
+    marginBottom: spacing.xl,
   },
   description: {
     ...typography.bodyL,
     color: colors.textSecondary,
     textAlign: 'center',
-    lineHeight: 24,
+    lineHeight: 22,
     marginBottom: spacing.xl,
     paddingHorizontal: spacing.m,
   },
-  quoteCard: {
+  fastIntroCard: {
     width: '100%',
     padding: spacing.l,
     borderRadius: radius.l,
     marginBottom: spacing.xxl,
-  },
-  quoteText: {
-    ...typography.bodyM,
-    fontStyle: 'italic',
-    color: colors.palace,
-    textAlign: 'center',
-  },
-  flowList: {
-    width: '100%',
     gap: spacing.m,
-    marginBottom: spacing.xxl,
   },
-  flowCard: {
-    padding: spacing.m,
-  },
-  flowRow: {
+  routineRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  stepNum: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
+  routineDot: {
+    fontSize: 20,
+    color: colors.palace,
     marginRight: spacing.m,
-  },
-  stepNumText: {
     fontWeight: '700',
-    fontSize: 16,
   },
-  flowTextContainer: {
-    flex: 1,
+  routineText: {
+    ...typography.bodyL,
+    fontWeight: '600',
+    color: colors.textPrimary,
   },
-  flowTitle: {
-    ...typography.headingM,
-    fontSize: 16,
-    marginBottom: 2,
-  },
-  flowSubtitle: {
-    ...typography.bodyS,
-    color: colors.textSecondary,
-  },
-  wordListContainer: {
-    width: '100%',
-    gap: spacing.s,
-    marginBottom: spacing.xl,
-  },
-  wordItemCard: {
+  wordGrid: {
     flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: spacing.m,
-    paddingHorizontal: spacing.l,
+    flexWrap: 'wrap',
+    gap: spacing.m,
+    justifyContent: 'center',
+    marginBottom: spacing.xl,
+    width: '100%',
   },
-  wordIndex: {
-    ...typography.caption,
-    color: colors.textMuted,
-    width: 30,
+  wordTile: {
+    width: '46%',
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.l,
+    paddingVertical: spacing.l,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   wordEmoji: {
-    fontSize: 24,
-    marginRight: spacing.m,
+    fontSize: 32,
+    marginBottom: spacing.xs,
   },
   wordText: {
     ...typography.headingM,
-    fontSize: 18,
+    fontSize: 16,
     color: colors.textPrimary,
   },
   optionsGrid: {
@@ -386,7 +342,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: radius.l,
     paddingVertical: spacing.m,
-    paddingHorizontal: spacing.l,
+    paddingHorizontal: spacing.m,
     minWidth: '45%',
   },
   optionChipSelected: {
@@ -405,32 +361,25 @@ const styles = StyleSheet.create({
   optionTextSelected: {
     color: colors.palace,
   },
-  improvementCard: {
-    alignItems: 'center',
-    padding: spacing.l,
+  trainingEffectCard: {
+    padding: spacing.xl,
+    borderRadius: radius.xl,
     width: '100%',
     marginBottom: spacing.xl,
   },
-  improvementTitle: {
+  trainingEffectHeader: {
     ...typography.headingM,
     fontSize: 16,
-    marginTop: spacing.s,
-    marginBottom: spacing.xs,
+    color: colors.palace,
+    marginBottom: spacing.s,
   },
-  improvementSub: {
+  trainingEffectBody: {
     ...typography.bodyM,
     color: colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  startTechniqueLabel: {
-    ...typography.caption,
-    color: colors.textMuted,
-    textAlign: 'center',
-    marginBottom: spacing.s,
+    lineHeight: 22,
   },
   footer: {
     width: '100%',
-    marginTop: spacing.l,
+    marginTop: spacing.s,
   },
 });

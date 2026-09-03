@@ -40,7 +40,10 @@ export const baselineTestWords: PracticeItem[] = [
   { id: 'base_2', word: 'Mirror', emoji: '🪞', category: 'objects' },
   { id: 'base_3', word: 'Key', emoji: '🔑', category: 'objects' },
   { id: 'base_4', word: 'Apple', emoji: '🍎', category: 'groceries' },
-  { id: 'base_5', word: 'Book', emoji: '📖', category: 'objects' },
+  { id: 'base_5', word: 'Guitar', emoji: '🎸', category: 'objects' },
+  { id: 'base_6', word: 'Rocket', emoji: '🚀', category: 'objects' },
+  { id: 'base_7', word: 'Banana', emoji: '🍌', category: 'groceries' },
+  { id: 'base_8', word: 'Watch', emoji: '⌚', category: 'objects' },
 ];
 
 export function getPracticeItems(count: number): PracticeItem[] {

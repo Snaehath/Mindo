@@ -9,6 +9,7 @@ import {
   Alert,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '../../navigation/NavigationContext';
 import { ScreenContainer } from '../../components/ScreenContainer';
 import { Header } from '../../components/Header';
@@ -58,6 +59,7 @@ const TEMPLATES: TemplateOption[] = [
 ];
 
 export const PalaceBuilderScreen: React.FC = () => {
+  const insets = useSafeAreaInsets();
   const { goBack, palaces, updatePalaces, navigate } = useNavigation();
 
   const [step, setStep] = useState<1 | 2>(1);
@@ -178,7 +180,13 @@ export const PalaceBuilderScreen: React.FC = () => {
           </View>
         </ScrollView>
       ) : (
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollBody}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={[
+            styles.scrollBody,
+            { paddingBottom: 120 + Math.max(insets.bottom, 16) },
+          ]}
+        >
           {/* Palace Name Input */}
           <Text style={styles.inputLabel}>Palace Name</Text>
           <TextInput
@@ -244,7 +252,7 @@ export const PalaceBuilderScreen: React.FC = () => {
       )}
 
       {step === 2 && (
-        <View style={styles.footer}>
+        <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) }]}>
           <Button
             label={`Save Palace (${spots.length} Spots)`}
             onPress={handleSavePalace}
@@ -421,8 +429,10 @@ const styles = StyleSheet.create({
     right: 0,
     backgroundColor: colors.surface,
     paddingHorizontal: spacing.l,
-    paddingVertical: spacing.m,
+    paddingTop: spacing.m,
     borderTopWidth: 1,
     borderTopColor: colors.border,
+    zIndex: 999,
+    elevation: 10,
   },
 });

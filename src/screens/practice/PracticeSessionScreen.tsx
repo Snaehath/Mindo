@@ -1,20 +1,20 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '../../navigation/NavigationContext';
 import { ScreenContainer } from '../../components/ScreenContainer';
 import { Header } from '../../components/Header';
 import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
-import { MemoryCard } from '../../components/MemoryCard';
-import { StepBar, ProgressBar } from '../../components/ProgressBar';
 import { colors, typography, spacing, radius } from '../../theme';
 import { getPracticeItems, PracticeItem, practiceItemPool } from '../../data/practiceData';
 import { pegRhymes } from '../../data/pegData';
 import { TechniqueType, UserPalace } from '../../types';
 
 export const PracticeSessionScreen: React.FC = () => {
-  const { params, goBack, palaces, recordPracticeAttempt, profile, navigate } = useNavigation();
+  const insets = useSafeAreaInsets();
+  const { params, goBack, palaces, recordPracticeAttempt, profile } = useNavigation();
 
   const techniqueId: TechniqueType = params?.techniqueId || 'palace';
   const level: number = params?.level || 1;
@@ -23,18 +23,19 @@ export const PracticeSessionScreen: React.FC = () => {
 
   const currentPalace: UserPalace | undefined = palaces.find((p) => p.id === palaceId) || palaces[0];
 
-  // Generate target items for this session
   const items: PracticeItem[] = useMemo(() => {
     return getPracticeItems(itemCount);
   }, [itemCount]);
 
-  // Phases: 'memorize' -> 'recall' -> 'result'
-  const [phase, setPhase] = useState<'memorize' | 'recall' | 'result'>('memorize');
+  // Phases: 'memorize' -> 'mental_walk' -> 'recall' -> 'result'
+  const [phase, setPhase] = useState<'memorize' | 'mental_walk' | 'recall' | 'result'>('memorize');
   const [currentMemorizeIndex, setCurrentMemorizeIndex] = useState(0);
 
   // Recall answers state: map question index to user answer word
   const [userAnswers, setUserAnswers] = useState<Record<number, string>>({});
   const [currentRecallQuestionIdx, setCurrentRecallQuestionIdx] = useState(0);
+  const [recallMode, setRecallMode] = useState<'type' | 'choice'>('choice');
+  const [typedInput, setTypedInput] = useState('');
 
   // Final score result
   const [sessionScore, setSessionScore] = useState<{
@@ -43,32 +44,35 @@ export const PracticeSessionScreen: React.FC = () => {
     accuracy: number;
   }>({ correct: 0, total: itemCount, accuracy: 0 });
 
-  // Compute location/anchor for current item
   const getAnchorInfo = (idx: number) => {
     if (techniqueId === 'palace') {
       const spot = currentPalace?.spots[idx % (currentPalace?.spots?.length || 1)];
       return {
-        label: `Spot #${idx + 1}: ${spot?.name || 'Room spot'}`,
-        hint: `Anchor this item vividly to the ${spot?.name || 'spot'}. Make it interact aggressively!`,
+        spotTag: `SPOT ${idx + 1} · ${spot?.name?.toUpperCase() || 'PALACE SPOT'}`,
+        label: spot?.name || `Spot #${idx + 1}`,
+        hint: `Imagine ${items[idx]?.word} interacting with the ${spot?.name || 'spot'}: ${items[idx]?.bizarreHint || 'Make it huge and bizarre!'}`,
       };
     } else if (techniqueId === 'peg') {
       const peg = pegRhymes[idx % pegRhymes.length];
       return {
-        label: `Peg #${peg.number}: ${peg.number} = ${peg.rhymeWord} ${peg.emoji}`,
-        hint: `Combine this item with a giant ${peg.rhymeWord} (${peg.prompt})!`,
+        spotTag: `PEG #${peg.number} · ${peg.number} = ${peg.rhymeWord.toUpperCase()}`,
+        label: `${peg.number} = ${peg.rhymeWord} ${peg.emoji}`,
+        hint: `Combine ${items[idx]?.word} with a giant ${peg.rhymeWord}: ${peg.prompt}!`,
       };
     } else {
       // Linking
       if (idx === 0) {
         return {
-          label: 'Story Start (Item #1)',
-          hint: 'Picture this first item standing in front of you.',
+          spotTag: 'STORY LINK 1 · THE OPENING',
+          label: 'Start of the story',
+          hint: `Picture ${items[idx]?.word} right in front of you: ${items[idx]?.bizarreHint || 'Huge and vivid!'}`,
         };
       }
-      const prevItem = items[idx - 1];
+      const prev = items[idx - 1];
       return {
-        label: `Chain #${idx + 1}: ${prevItem.word} → ${items[idx].word}`,
-        hint: `Imagine ${prevItem.word} colliding wildly with ${items[idx].word}!`,
+        spotTag: `STORY LINK ${idx + 1} · COLLISION`,
+        label: `${prev.word} → ${items[idx]?.word}`,
+        hint: `Imagine ${prev.word} violently crashing into ${items[idx]?.word}!`,
       };
     }
   };
@@ -80,9 +84,8 @@ export const PracticeSessionScreen: React.FC = () => {
     if (currentMemorizeIndex < items.length - 1) {
       setCurrentMemorizeIndex(currentMemorizeIndex + 1);
     } else {
-      // Transition to recall
-      setPhase('recall');
-      setCurrentRecallQuestionIdx(0);
+      // Transition to Mental Walk Phase!
+      setPhase('mental_walk');
     }
   };
 
@@ -92,7 +95,7 @@ export const PracticeSessionScreen: React.FC = () => {
     }
   };
 
-  // Generate 4 multiple-choice options for the active recall question
+  // Generate 4 clean choices for active recall question
   const currentRecallOptions = useMemo(() => {
     if (phase !== 'recall') return [];
     const targetItem = items[currentRecallQuestionIdx];
@@ -103,24 +106,25 @@ export const PracticeSessionScreen: React.FC = () => {
       .sort(() => 0.5 - Math.random())
       .slice(0, 3);
 
-    const options = [targetItem, ...distractors].sort(() => 0.5 - Math.random());
-    return options;
+    return [targetItem, ...distractors].sort(() => 0.5 - Math.random());
   }, [phase, currentRecallQuestionIdx, items]);
 
-  const handleAnswerQuestion = (selectedWord: string) => {
-    const updatedAnswers = {
+  const submitAnswer = (answeredWord: string) => {
+    const updated = {
       ...userAnswers,
-      [currentRecallQuestionIdx]: selectedWord,
+      [currentRecallQuestionIdx]: answeredWord.trim(),
     };
-    setUserAnswers(updatedAnswers);
+    setUserAnswers(updated);
+    setTypedInput('');
 
     if (currentRecallQuestionIdx < items.length - 1) {
       setCurrentRecallQuestionIdx(currentRecallQuestionIdx + 1);
     } else {
-      // Finish session and compute score
+      // Finish workout and tally score
       let correctCount = 0;
       items.forEach((it, idx) => {
-        if (updatedAnswers[idx] === it.word) {
+        const ans = (updated[idx] || '').trim().toLowerCase();
+        if (ans === it.word.toLowerCase()) {
           correctCount += 1;
         }
       });
@@ -132,7 +136,6 @@ export const PracticeSessionScreen: React.FC = () => {
         accuracy,
       });
 
-      // Record offline in storage
       recordPracticeAttempt({
         id: `attempt_${Date.now()}`,
         techniqueId,
@@ -147,183 +150,272 @@ export const PracticeSessionScreen: React.FC = () => {
     }
   };
 
-  const getEncouragement = (correct: number, total: number) => {
-    const ratio = correct / total;
-    if (ratio === 1) return 'Perfection! Your mental anchors held with 100% precision. 🏆';
-    if (ratio >= 0.8) return 'Outstanding recall! Your associations were remarkably strong. 🌟';
-    if (ratio >= 0.6) return 'Good effort! Make the mental imagery louder, bigger, and weirder next time. 💪';
-    return 'Good workout! Exaggerate the images more — bizarre scenes stick best. 🧠';
-  };
-
   return (
     <ScreenContainer contentContainerStyle={styles.container}>
       <Header
         title={
           phase === 'memorize'
-            ? 'Memorization Phase'
+            ? 'Memorize'
+            : phase === 'mental_walk'
+            ? 'Mental Mode'
             : phase === 'recall'
-            ? 'Recall Challenge'
+            ? 'Recall'
             : 'Workout Results'
         }
         subtitle={
           phase === 'memorize'
-            ? `Card ${currentMemorizeIndex + 1} of ${items.length}`
+            ? `Item ${currentMemorizeIndex + 1} of ${items.length}`
             : phase === 'recall'
-            ? `Item #${currentRecallQuestionIdx + 1} of ${items.length}`
+            ? `Spot ${currentRecallQuestionIdx + 1} of ${items.length}`
             : `Level ${level} Complete`
         }
         onBack={phase === 'result' ? undefined : goBack}
       />
 
-      {/* PHASE 1: MEMORIZATION */}
+      {/* PHASE 1: IMMERSIVE SPOT-BY-SPOT MEMORIZATION */}
       {phase === 'memorize' && (
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollBody}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={[
+            styles.scrollBody,
+            { paddingBottom: 60 + Math.max(insets.bottom, 20) },
+          ]}
+        >
+          {/* Progress Bar */}
           <View style={styles.topProgress}>
-            <StepBar
-              currentStep={currentMemorizeIndex + 1}
-              totalSteps={items.length}
-              color={
-                techniqueId === 'palace'
-                  ? colors.palace
-                  : techniqueId === 'linking'
-                  ? colors.linking
-                  : colors.peg
-              }
-            />
+            <Text style={styles.memorizeCounter}>
+              ITEM {currentMemorizeIndex + 1} OF {items.length}
+            </Text>
+            <View style={styles.progressBarTrack}>
+              <View
+                style={[
+                  styles.progressBarFill,
+                  { width: `${((currentMemorizeIndex + 1) / items.length) * 100}%` },
+                ]}
+              />
+            </View>
           </View>
 
-          <MemoryCard
-            emoji={currentItem.emoji}
-            title={currentItem.word}
-            locationOrPeg={anchor.label}
-            associationHint={anchor.hint}
-            style={styles.cardSpacing}
-          />
+          {/* Immersive Memorization Card */}
+          <Card style={styles.immersiveCard}>
+            <Text style={styles.anchorSpotTag}>{anchor.spotTag}</Text>
+            <Text style={styles.hugeEmoji}>{currentItem.emoji}</Text>
+            <Text style={styles.itemTitle}>{currentItem.word.toUpperCase()}</Text>
 
-          <View style={styles.navButtonsRow}>
+            <View style={styles.sceneBox}>
+              <Text style={styles.scenePrompt}>{anchor.hint}</Text>
+            </View>
+          </Card>
+
+          <View style={styles.navRow}>
+            {currentMemorizeIndex > 0 && (
+              <Button
+                label="← Prev"
+                onPress={handlePrevMemorize}
+                variant="outline"
+                size="normal"
+                style={styles.prevBtn}
+              />
+            )}
             <Button
-              label="← Prev"
-              onPress={handlePrevMemorize}
-              disabled={currentMemorizeIndex === 0}
-              variant="outline"
-              size="normal"
-              style={styles.halfBtn}
-            />
-            <Button
-              label={currentMemorizeIndex === items.length - 1 ? 'Start Recall Test →' : 'Next Card →'}
-              onPress={handleNextMemorize}
-              variant={
-                techniqueId === 'palace'
-                  ? 'palace'
-                  : techniqueId === 'linking'
-                  ? 'linking'
-                  : 'peg'
+              label={
+                currentMemorizeIndex === items.length - 1
+                  ? 'I’ve Got All Items →'
+                  : 'I’ve Got It →'
               }
+              onPress={handleNextMemorize}
+              variant="palace"
               size="normal"
-              style={styles.halfBtn}
+              style={{ flex: 1 }}
             />
           </View>
         </ScrollView>
       )}
 
-      {/* PHASE 2: RECALL */}
+      {/* PHASE 2: MENTAL MODE (Put phone down and walk route) */}
+      {phase === 'mental_walk' && (
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={[
+            styles.scrollBody,
+            styles.centeredScroll,
+            { paddingBottom: 60 + Math.max(insets.bottom, 20) },
+          ]}
+        >
+          <View style={styles.mentalModeCircle}>
+            <MaterialCommunityIcons name="eye-off" size={48} color={colors.palace} />
+          </View>
+
+          <Text style={styles.mentalModeTitle}>Put your phone down</Text>
+          <Text style={styles.mentalModeBody}>
+            Close your eyes for 15 seconds.
+          </Text>
+          <Text style={[styles.mentalModeBody, { marginTop: spacing.s }]}>
+            Walk through your route in your mind. Check each spot: can you see the bizarre scene you placed there?
+          </Text>
+
+          <Card variant="tinted" tintColor={colors.palaceLight} style={styles.mentalTipCard}>
+            <Text style={styles.mentalTipText}>
+              "Skill acquisition happens in the mind, not on the glass screen."
+            </Text>
+          </Card>
+
+          <Button
+            label="I Walked Through — I’m Ready →"
+            onPress={() => {
+              setPhase('recall');
+              setCurrentRecallQuestionIdx(0);
+            }}
+            variant="palace"
+            style={{ width: '100%', marginTop: spacing.l }}
+          />
+        </ScrollView>
+      )}
+
+      {/* PHASE 3: RECALL CHALLENGE (Active retrieval) */}
       {phase === 'recall' && (
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollBody}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={[
+            styles.scrollBody,
+            { paddingBottom: 60 + Math.max(insets.bottom, 20) },
+          ]}
+        >
           <View style={styles.topProgress}>
-            <StepBar
-              currentStep={currentRecallQuestionIdx + 1}
-              totalSteps={items.length}
-              color={colors.primary}
-            />
+            <Text style={styles.memorizeCounter}>
+              SPOT {currentRecallQuestionIdx + 1} OF {items.length}
+            </Text>
           </View>
 
           <Card style={styles.questionCard}>
-            <Text style={styles.recallPromptLabel}>Recall Question:</Text>
-            <Text style={styles.recallQuestionText}>
-              {techniqueId === 'palace'
-                ? `What was at ${getAnchorInfo(currentRecallQuestionIdx).label}?`
-                : techniqueId === 'peg'
-                ? `What item was hanging on Peg #${currentRecallQuestionIdx + 1}?`
-                : `What item followed in the story chain at position #${currentRecallQuestionIdx + 1}?`}
+            <Text style={styles.recallAnchorLabel}>
+              {getAnchorInfo(currentRecallQuestionIdx).spotTag}
+            </Text>
+            <Text style={styles.recallQuestionPrompt}>
+              What item did you place here?
             </Text>
           </Card>
 
-          <Text style={styles.selectPrompt}>Tap the matching item:</Text>
-
-          <View style={styles.recallOptionsGrid}>
-            {currentRecallOptions.map((opt) => (
-              <TouchableOpacity
-                key={opt.word}
-                onPress={() => handleAnswerQuestion(opt.word)}
-                activeOpacity={0.7}
-                style={styles.recallOptionBtn}
-              >
-                <Text style={styles.recallOptionEmoji}>{opt.emoji}</Text>
-                <Text style={styles.recallOptionText}>{opt.word}</Text>
-              </TouchableOpacity>
-            ))}
+          {/* Mode Switcher: Choice vs Typing */}
+          <View style={styles.recallModeSwitch}>
+            <TouchableOpacity
+              onPress={() => setRecallMode('choice')}
+              style={[styles.modeTab, recallMode === 'choice' && styles.modeTabActive]}
+            >
+              <Text style={[styles.modeTabText, recallMode === 'choice' && styles.modeTabTextActive]}>
+                Options
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setRecallMode('type')}
+              style={[styles.modeTab, recallMode === 'type' && styles.modeTabActive]}
+            >
+              <Text style={[styles.modeTabText, recallMode === 'type' && styles.modeTabTextActive]}>
+                Type (Pro)
+              </Text>
+            </TouchableOpacity>
           </View>
+
+          {recallMode === 'choice' ? (
+            <View style={styles.choiceGrid}>
+              {currentRecallOptions.map((opt) => (
+                <TouchableOpacity
+                  key={opt.word}
+                  onPress={() => submitAnswer(opt.word)}
+                  activeOpacity={0.7}
+                  style={styles.choiceBtn}
+                >
+                  <Text style={styles.choiceText}>{opt.word}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          ) : (
+            <View style={styles.typeBox}>
+              <TextInput
+                value={typedInput}
+                onChangeText={setTypedInput}
+                placeholder="Type item name..."
+                placeholderTextColor={colors.textMuted}
+                style={styles.typeTextInput}
+                onSubmitEditing={() => submitAnswer(typedInput)}
+                autoFocus
+              />
+              <Button
+                label="Submit Item"
+                onPress={() => submitAnswer(typedInput)}
+                disabled={!typedInput.trim()}
+                variant="palace"
+                style={{ marginTop: spacing.m }}
+              />
+            </View>
+          )}
         </ScrollView>
       )}
 
-      {/* PHASE 3: RESULTS */}
+      {/* PHASE 4: RESULTS */}
       {phase === 'result' && (
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollBody}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={[
+            styles.scrollBody,
+            { paddingBottom: 60 + Math.max(insets.bottom, 20) },
+          ]}
+        >
           <View style={styles.resultScoreCircle}>
-            <Text style={styles.resultScoreText}>
+            <Text style={styles.resultScoreNum}>
               {sessionScore.correct}/{sessionScore.total}
             </Text>
-            <Text style={styles.resultAccuracyText}>{sessionScore.accuracy}% Accuracy</Text>
+            <Text style={styles.resultAccuracyLabel}>
+              {sessionScore.accuracy}% Recall
+            </Text>
           </View>
 
-          <Text style={styles.resultHeading}>
-            {sessionScore.correct === sessionScore.total ? 'Flawless Recall! 🎉' : 'Workout Complete! 🧠'}
+          <Text style={styles.resultMainTitle}>
+            {sessionScore.correct === sessionScore.total
+              ? 'Flawless Recall 🎉'
+              : 'Workout Complete 🧠'}
           </Text>
-
-          <Card variant="tinted" tintColor={colors.surfaceMuted} style={styles.feedbackCard}>
-            <Text style={styles.feedbackText}>
-              {getEncouragement(sessionScore.correct, sessionScore.total)}
-            </Text>
-          </Card>
 
           {/* Baseline Improvement Comparison */}
           {profile.baselineScore && (
             <Card variant="tinted" tintColor={colors.successLight} style={styles.baselineCard}>
-              <View style={styles.baselineHeaderRow}>
-                <MaterialCommunityIcons name="trending-up" size={24} color={colors.success} />
-                <Text style={styles.baselineTitle}>Improvement vs Baseline</Text>
-              </View>
-              <Text style={styles.baselineComparisonText}>
-                Before technique training: {profile.baselineScore.recalled} / {profile.baselineScore.total} items.
+              <Text style={styles.baselineCompareTitle}>Improvement vs Baseline</Text>
+              <Text style={styles.baselineBeforeAfter}>
+                Before training: {profile.baselineScore.recalled} / {profile.baselineScore.total} items
               </Text>
-              <Text style={styles.baselineImprovementHighlight}>
-                Today's recall: {sessionScore.correct} items! (+
-                {Math.max(0, sessionScore.correct - profile.baselineScore.recalled)} items gain)
+              <Text style={styles.baselineAfterHighlight}>
+                Today: {sessionScore.correct} / {sessionScore.total} items!
               </Text>
             </Card>
           )}
 
-          {/* Breakdown Table */}
-          <View style={styles.breakdownBox}>
-            <Text style={styles.breakdownTitle}>Item Breakdown:</Text>
+          {/* Item Breakdown */}
+          <View style={styles.breakdownContainer}>
+            <Text style={styles.breakdownHeader}>Session Review:</Text>
             {items.map((it, idx) => {
-              const isCorrect = userAnswers[idx] === it.word;
+              const userAns = (userAnswers[idx] || '').trim().toLowerCase();
+              const isMatch = userAns === it.word.toLowerCase();
               return (
-                <View key={it.word} style={styles.breakdownRow}>
-                  <Text style={styles.breakdownOrder}>#{idx + 1}</Text>
+                <View key={it.word} style={styles.breakdownItemRow}>
+                  <Text style={styles.breakdownIndex}>#{idx + 1}</Text>
                   <Text style={styles.breakdownEmoji}>{it.emoji}</Text>
-                  <Text style={styles.breakdownName}>{it.word}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.breakdownWord}>{it.word}</Text>
+                    {userAnswers[idx] && !isMatch && (
+                      <Text style={styles.breakdownWrongText}>You: "{userAnswers[idx]}"</Text>
+                    )}
+                  </View>
                   <MaterialCommunityIcons
-                    name={isCorrect ? 'check-circle' : 'close-circle'}
-                    size={20}
-                    color={isCorrect ? colors.success : colors.danger}
+                    name={isMatch ? 'check-circle' : 'close-circle'}
+                    size={22}
+                    color={isMatch ? colors.success : colors.danger}
                   />
                 </View>
               );
             })}
           </View>
 
-          <View style={styles.resultActions}>
+          <View style={styles.resultActionRow}>
             <Button
               label="Try Again"
               onPress={() => {
@@ -333,13 +425,13 @@ export const PracticeSessionScreen: React.FC = () => {
                 setCurrentRecallQuestionIdx(0);
               }}
               variant="outline"
-              style={styles.halfBtn}
+              style={{ flex: 1 }}
             />
             <Button
-              label="Back to Gym"
+              label="Done → Gym"
               onPress={() => goBack()}
-              variant="primary"
-              style={styles.halfBtn}
+              variant="palace"
+              style={{ flex: 1 }}
             />
           </View>
         </ScrollView>
@@ -355,131 +447,228 @@ const styles = StyleSheet.create({
   },
   scrollBody: {
     paddingHorizontal: spacing.l,
-    paddingBottom: 40,
+  },
+  centeredScroll: {
+    alignItems: 'center',
+    paddingTop: spacing.l,
   },
   topProgress: {
     marginBottom: spacing.l,
   },
-  cardSpacing: {
-    marginBottom: spacing.xl,
+  memorizeCounter: {
+    ...typography.caption,
+    color: colors.palace,
+    fontWeight: '700',
+    letterSpacing: 1,
+    marginBottom: 6,
   },
-  navButtonsRow: {
+  progressBarTrack: {
+    height: 6,
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: radius.pill,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    backgroundColor: colors.palace,
+    borderRadius: radius.pill,
+  },
+  immersiveCard: {
+    padding: spacing.xl,
+    borderRadius: radius.xl,
+    alignItems: 'center',
+    marginBottom: spacing.xl,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+  },
+  anchorSpotTag: {
+    ...typography.caption,
+    color: colors.palace,
+    fontWeight: '700',
+    marginBottom: spacing.m,
+  },
+  hugeEmoji: {
+    fontSize: 68,
+    marginBottom: spacing.s,
+  },
+  itemTitle: {
+    ...typography.headingL,
+    fontSize: 26,
+    letterSpacing: 0.5,
+    marginBottom: spacing.m,
+  },
+  sceneBox: {
+    backgroundColor: colors.surfaceMuted,
+    padding: spacing.l,
+    borderRadius: radius.l,
+    width: '100%',
+  },
+  scenePrompt: {
+    ...typography.bodyL,
+    fontSize: 16,
+    color: colors.textPrimary,
+    lineHeight: 22,
+    textAlign: 'center',
+  },
+  navRow: {
     flexDirection: 'row',
     gap: spacing.m,
   },
-  halfBtn: {
-    flex: 1,
+  prevBtn: {
+    width: 100,
+  },
+  mentalModeCircle: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: colors.palaceLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: spacing.xl,
+  },
+  mentalModeTitle: {
+    ...typography.headingXL,
+    textAlign: 'center',
+    marginBottom: spacing.m,
+  },
+  mentalModeBody: {
+    ...typography.bodyL,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 24,
+    paddingHorizontal: spacing.m,
+  },
+  mentalTipCard: {
+    padding: spacing.l,
+    borderRadius: radius.l,
+    marginTop: spacing.xl,
+    width: '100%',
+  },
+  mentalTipText: {
+    ...typography.bodyM,
+    color: colors.palace,
+    fontStyle: 'italic',
+    textAlign: 'center',
   },
   questionCard: {
     padding: spacing.xl,
     borderRadius: radius.xl,
-    marginBottom: spacing.xl,
-    borderWidth: 1.5,
-    borderColor: colors.borderStrong,
+    marginBottom: spacing.l,
   },
-  recallPromptLabel: {
+  recallAnchorLabel: {
     ...typography.caption,
-    color: colors.textMuted,
+    color: colors.palace,
+    fontWeight: '700',
     marginBottom: spacing.s,
   },
-  recallQuestionText: {
-    ...typography.headingM,
+  recallQuestionPrompt: {
+    ...typography.headingL,
+    fontSize: 20,
     color: colors.textPrimary,
-    lineHeight: 26,
   },
-  selectPrompt: {
-    ...typography.bodyM,
+  recallModeSwitch: {
+    flexDirection: 'row',
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: radius.m,
+    padding: 3,
+    marginBottom: spacing.l,
+  },
+  modeTab: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: 'center',
+    borderRadius: radius.s,
+  },
+  modeTabActive: {
+    backgroundColor: colors.surface,
+  },
+  modeTabText: {
+    ...typography.bodyS,
+    color: colors.textMuted,
     fontWeight: '600',
-    color: colors.textSecondary,
-    marginBottom: spacing.m,
   },
-  recallOptionsGrid: {
+  modeTabTextActive: {
+    color: colors.textPrimary,
+    fontWeight: '700',
+  },
+  choiceGrid: {
     gap: spacing.m,
   },
-  recallOptionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  choiceBtn: {
     backgroundColor: colors.surface,
     padding: spacing.l,
     borderRadius: radius.l,
     borderWidth: 1.5,
     borderColor: colors.border,
   },
-  recallOptionEmoji: {
-    fontSize: 28,
-    marginRight: spacing.m,
+  choiceText: {
+    ...typography.bodyL,
+    fontWeight: '600',
+    color: colors.textPrimary,
+    textAlign: 'center',
   },
-  recallOptionText: {
-    ...typography.headingM,
-    fontSize: 17,
+  typeBox: {
+    width: '100%',
+  },
+  typeTextInput: {
+    backgroundColor: colors.surface,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderRadius: radius.l,
+    paddingHorizontal: spacing.l,
+    paddingVertical: spacing.l,
+    fontSize: 18,
     color: colors.textPrimary,
   },
   resultScoreCircle: {
-    width: 140,
-    height: 140,
-    borderRadius: 70,
+    width: 130,
+    height: 130,
+    borderRadius: 65,
     backgroundColor: colors.palaceLight,
-    alignSelf: 'center',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: spacing.l,
+    alignSelf: 'center',
     marginTop: spacing.s,
+    marginBottom: spacing.l,
   },
-  resultScoreText: {
+  resultScoreNum: {
     ...typography.headingXL,
-    fontSize: 36,
-    color: colors.palace,
+    fontSize: 34,
     fontWeight: '800',
-  },
-  resultAccuracyText: {
-    ...typography.bodyS,
     color: colors.palace,
-    fontWeight: '700',
-    marginTop: 2,
   },
-  resultHeading: {
+  resultAccuracyLabel: {
+    ...typography.bodyS,
+    fontWeight: '700',
+    color: colors.palace,
+  },
+  resultMainTitle: {
     ...typography.headingL,
     textAlign: 'center',
-    marginBottom: spacing.m,
-  },
-  feedbackCard: {
-    padding: spacing.l,
-    borderRadius: radius.l,
     marginBottom: spacing.l,
-  },
-  feedbackText: {
-    ...typography.bodyM,
-    color: colors.textPrimary,
-    textAlign: 'center',
-    lineHeight: 22,
   },
   baselineCard: {
     padding: spacing.l,
     borderRadius: radius.l,
     marginBottom: spacing.l,
   },
-  baselineHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.s,
-    marginBottom: spacing.xs,
-  },
-  baselineTitle: {
-    ...typography.headingM,
-    fontSize: 15,
+  baselineCompareTitle: {
+    ...typography.caption,
+    fontWeight: '700',
     color: colors.success,
-  },
-  baselineComparisonText: {
-    ...typography.bodyS,
-    color: colors.textSecondary,
     marginBottom: 4,
   },
-  baselineImprovementHighlight: {
+  baselineBeforeAfter: {
     ...typography.bodyM,
+    color: colors.textSecondary,
+    marginBottom: 2,
+  },
+  baselineAfterHighlight: {
+    ...typography.bodyL,
     fontWeight: '700',
     color: colors.success,
   },
-  breakdownBox: {
+  breakdownContainer: {
     backgroundColor: colors.surface,
     borderRadius: radius.l,
     borderWidth: 1,
@@ -487,13 +676,13 @@ const styles = StyleSheet.create({
     padding: spacing.m,
     marginBottom: spacing.xl,
   },
-  breakdownTitle: {
+  breakdownHeader: {
     ...typography.caption,
     color: colors.textMuted,
     marginBottom: spacing.s,
     paddingHorizontal: spacing.s,
   },
-  breakdownRow: {
+  breakdownItemRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: spacing.s,
@@ -501,21 +690,25 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.surfaceMuted,
   },
-  breakdownOrder: {
+  breakdownIndex: {
     ...typography.caption,
     color: colors.textMuted,
     width: 28,
   },
   breakdownEmoji: {
-    fontSize: 20,
+    fontSize: 22,
     marginRight: spacing.s,
   },
-  breakdownName: {
-    flex: 1,
+  breakdownWord: {
     ...typography.bodyM,
+    fontWeight: '600',
     color: colors.textPrimary,
   },
-  resultActions: {
+  breakdownWrongText: {
+    ...typography.bodyS,
+    color: colors.danger,
+  },
+  resultActionRow: {
     flexDirection: 'row',
     gap: spacing.m,
   },
