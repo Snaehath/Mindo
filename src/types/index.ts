@@ -2,8 +2,16 @@ export type TechniqueType = 'palace' | 'linking' | 'peg';
 
 export type MasteryLevel = 'beginner' | 'learner' | 'skilled' | 'advanced' | 'master';
 
+export type UserLifecycleState =
+  | 'NEW_USER'
+  | 'BASELINE_COMPLETE'
+  | 'PALACE_INTRO_COMPLETE'
+  | 'FIRST_WORKOUT_COMPLETE'
+  | 'ACTIVE_USER';
+
 export interface UserProfile {
   hasCompletedOnboarding: boolean;
+  lifecycleState: UserLifecycleState;
   baselineScore: {
     total: number;
     recalled: number;

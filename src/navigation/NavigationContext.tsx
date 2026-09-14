@@ -50,6 +50,7 @@ export const NavigationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [data, setData] = useState<AppStateData>({
     profile: {
       hasCompletedOnboarding: false,
+      lifecycleState: 'NEW_USER',
       baselineScore: null,
       streakDays: 1,
       lastActiveDate: new Date().toISOString().split('T')[0],

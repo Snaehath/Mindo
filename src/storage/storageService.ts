@@ -12,6 +12,7 @@ const STORAGE_KEYS = {
 
 const defaultProfile: UserProfile = {
   hasCompletedOnboarding: false,
+  lifecycleState: 'NEW_USER',
   baselineScore: null,
   streakDays: 1,
   lastActiveDate: new Date().toISOString().split('T')[0],
@@ -55,12 +56,26 @@ export const StorageService = {
         AsyncStorage.getItem(STORAGE_KEYS.RETENTION),
       ]);
 
-      const profile: UserProfile = profileRaw ? JSON.parse(profileRaw) : defaultProfile;
+      const practiceHistory: PracticeAttempt[] = histRaw ? JSON.parse(histRaw) : [];
+      let profile: UserProfile = profileRaw ? JSON.parse(profileRaw) : defaultProfile;
+
+      // Backward-compatible migration for lifecycleState
+      if (!profile.lifecycleState) {
+        if (!profile.hasCompletedOnboarding) {
+          profile.lifecycleState = 'NEW_USER';
+        } else if (practiceHistory.length === 0) {
+          profile.lifecycleState = 'BASELINE_COMPLETE';
+        } else if (practiceHistory.length === 1) {
+          profile.lifecycleState = 'FIRST_WORKOUT_COMPLETE';
+        } else {
+          profile.lifecycleState = 'ACTIVE_USER';
+        }
+      }
+
       const techniqueProgress: Record<TechniqueType, TechniqueProgress> = techRaw
         ? { ...defaultTechniqueProgress, ...JSON.parse(techRaw) }
         : defaultTechniqueProgress;
       const palaces: UserPalace[] = palacesRaw ? JSON.parse(palacesRaw) : defaultPalaces;
-      const practiceHistory: PracticeAttempt[] = histRaw ? JSON.parse(histRaw) : [];
       const retentionMemories = retRaw ? JSON.parse(retRaw) : [];
 
       // Update streak if today is a new active day
