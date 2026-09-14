@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, BackHandler } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '../../navigation/NavigationContext';
@@ -107,7 +107,7 @@ export const OnboardingScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
   const {
     updateProfile,
-    navigate,
+    switchTab,
     recordPracticeAttempt,
     saveRetentionMemory,
     palaces,
@@ -137,6 +137,57 @@ export const OnboardingScreen: React.FC = () => {
   // Step 6: Recall answers map (question index -> chosen word)
   const [recallAnswers, setRecallAnswers] = useState<Record<number, string>>({});
   const [activeQuestionIdx, setActiveQuestionIdx] = useState(0);
+
+  // Double-tap race condition guard
+  const [isFinishing, setIsFinishing] = useState(false);
+
+  // Hardware back press navigation on Android
+  useEffect(() => {
+    const onBackPress = () => {
+      if (currentStep === 1) {
+        return false; // Exit app
+      }
+      if (currentStep === 2) {
+        if (testPhase === 'test') {
+          setTestPhase('memorize');
+          return true;
+        }
+        setCurrentStep(1);
+        return true;
+      }
+      if (currentStep === 3) {
+        setCurrentStep(2);
+        return true;
+      }
+      if (currentStep === 4) {
+        setCurrentStep(3);
+        return true;
+      }
+      if (currentStep === 5) {
+        if (encodingItemIndex > 0) {
+          setEncodingItemIndex(encodingItemIndex - 1);
+          return true;
+        }
+        setCurrentStep(4);
+        return true;
+      }
+      if (currentStep === 6) {
+        if (activeQuestionIdx > 0) {
+          setActiveQuestionIdx(activeQuestionIdx - 1);
+          return true;
+        }
+        setCurrentStep(5);
+        return true;
+      }
+      if (currentStep === 7) {
+        return true; // Keep on results screen
+      }
+      return false;
+    };
+
+    const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => sub.remove();
+  }, [currentStep, testPhase, encodingItemIndex, activeQuestionIdx]);
 
   // Candidate options for baseline recall (8 targets + 6 distractors)
   const allBaselineOptions = [
@@ -195,54 +246,62 @@ export const OnboardingScreen: React.FC = () => {
   };
 
   const handleFinishFirstRun = async () => {
-    const actualRecalled = getActualPalaceRecallScore();
-    const totalItems = 4;
-    const accuracy = Math.round((actualRecalled / totalItems) * 100);
+    if (isFinishing) return;
+    setIsFinishing(true);
 
-    // 1. Record authentic practice attempt in history
-    await recordPracticeAttempt({
-      id: `attempt_initial_${Date.now()}`,
-      techniqueId: 'palace',
-      level: 1,
-      totalItems,
-      correctItems: actualRecalled,
-      accuracy,
-      timestamp: new Date().toISOString(),
-    });
+    try {
+      const actualRecalled = getActualPalaceRecallScore();
+      const totalItems = 4;
+      const accuracy = Math.round((actualRecalled / totalItems) * 100);
 
-    // 2. Schedule Day 1 retention review for tomorrow
-    const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-    await saveRetentionMemory({
-      id: `retention_first_${Date.now()}`,
-      palaceId: palaces[0]?.id || 'palace_home_default',
-      palaceName: palaces[0]?.name || 'My Home Palace',
-      encodedDate: new Date().toISOString(),
-      items: FIRST_PALACE_ITEMS.map((item) => ({
-        spotIndex: item.spotIndex,
-        spotName: item.spotName,
-        word: item.word,
-        emoji: item.emoji,
-        bizarreHint: item.sensoryHint,
-      })),
-      reviews: [],
-      nextReviewDate: tomorrow,
-      currentIntervalDay: 1,
-      status: 'active',
-    });
+      // 1. Record authentic practice attempt in history
+      await recordPracticeAttempt({
+        id: `attempt_initial_${Date.now()}`,
+        techniqueId: 'palace',
+        level: 1,
+        totalItems,
+        correctItems: actualRecalled,
+        accuracy,
+        timestamp: new Date().toISOString(),
+      });
 
-    // 3. Persist baseline permanently and advance lifecycle to FIRST_WORKOUT_COMPLETE
-    await updateProfile({
-      hasCompletedOnboarding: true,
-      lifecycleState: 'FIRST_WORKOUT_COMPLETE',
-      baselineScore: {
-        total: 8,
-        recalled: baselineResult.recalled,
-        date: new Date().toISOString(),
-      },
-    });
+      // 2. Schedule Day 1 retention review for tomorrow
+      const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+      await saveRetentionMemory({
+        id: `retention_first_${Date.now()}`,
+        palaceId: palaces[0]?.id || 'palace_home_default',
+        palaceName: palaces[0]?.name || 'My Home Palace',
+        encodedDate: new Date().toISOString(),
+        items: FIRST_PALACE_ITEMS.map((item) => ({
+          spotIndex: item.spotIndex,
+          spotName: item.spotName,
+          word: item.word,
+          emoji: item.emoji,
+          bizarreHint: item.sensoryHint,
+        })),
+        reviews: [],
+        nextReviewDate: tomorrow,
+        currentIntervalDay: 1,
+        status: 'active',
+      });
 
-    // 4. Navigate directly to Home
-    navigate('home');
+      // 3. Persist baseline permanently and advance lifecycle to FIRST_WORKOUT_COMPLETE
+      await updateProfile({
+        hasCompletedOnboarding: true,
+        lifecycleState: 'FIRST_WORKOUT_COMPLETE',
+        baselineScore: {
+          total: 8,
+          recalled: baselineResult.recalled,
+          date: new Date().toISOString(),
+        },
+      });
+
+      // 4. Reset history and navigate to Home
+      switchTab('home');
+    } catch (e) {
+      console.warn('Error finishing first run', e);
+      setIsFinishing(false);
+    }
   };
 
   return (

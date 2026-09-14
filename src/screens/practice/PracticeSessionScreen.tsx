@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput } from 'react-native';
+import React, { useState, useMemo, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, BackHandler } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '../../navigation/NavigationContext';
@@ -47,6 +47,44 @@ export const PracticeSessionScreen: React.FC = () => {
     params?.recallMode === 'type' ? 'type' : 'choice'
   );
   const [typedInput, setTypedInput] = useState('');
+
+  // Double-tap race condition guard
+  const [isFinishing, setIsFinishing] = useState(false);
+
+  // Android hardware back press navigation
+  useEffect(() => {
+    const onBackPress = () => {
+      if (phase === 'memorize') {
+        if (currentMemorizeIndex > 0) {
+          setCurrentMemorizeIndex(currentMemorizeIndex - 1);
+          return true;
+        }
+        goBack();
+        return true;
+      }
+      if (phase === 'mental_walk') {
+        setPhase('memorize');
+        setCurrentMemorizeIndex(items.length - 1);
+        return true;
+      }
+      if (phase === 'recall') {
+        if (currentRecallQuestionIdx > 0) {
+          setCurrentRecallQuestionIdx(currentRecallQuestionIdx - 1);
+          return true;
+        }
+        goBack();
+        return true;
+      }
+      if (phase === 'result') {
+        goBack();
+        return true;
+      }
+      return false;
+    };
+
+    const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => sub.remove();
+  }, [phase, currentMemorizeIndex, currentRecallQuestionIdx, items.length]);
 
   // Final score result
   const [sessionScore, setSessionScore] = useState<{
@@ -131,6 +169,9 @@ export const PracticeSessionScreen: React.FC = () => {
     if (currentRecallQuestionIdx < items.length - 1) {
       setCurrentRecallQuestionIdx(currentRecallQuestionIdx + 1);
     } else {
+      if (isFinishing) return;
+      setIsFinishing(true);
+
       // Finish workout and tally score
       let correctCount = 0;
       items.forEach((it, idx) => {

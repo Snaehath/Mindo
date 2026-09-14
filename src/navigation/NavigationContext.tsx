@@ -123,10 +123,15 @@ export const NavigationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     if (history.length > 0) {
       const previous = history[history.length - 1];
       setHistory((prev) => prev.slice(0, prev.length - 1));
-      setCurrentScreen(previous.screen);
-      setParams(previous.params || {});
-      if (['home', 'learn', 'practice', 'progress'].includes(previous.screen)) {
-        setActiveTab(previous.screen as any);
+      if (previous.screen === 'onboarding' && data.profile.hasCompletedOnboarding) {
+        setCurrentScreen('home');
+        setActiveTab('home');
+      } else {
+        setCurrentScreen(previous.screen);
+        setParams(previous.params || {});
+        if (['home', 'learn', 'practice', 'progress'].includes(previous.screen)) {
+          setActiveTab(previous.screen as any);
+        }
       }
     } else {
       switchTab('home');
@@ -166,8 +171,14 @@ export const NavigationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   const recordPracticeAttempt = async (attempt: PracticeAttempt) => {
     const { history: newHistory, updatedTechnique } = await StorageService.recordPractice(attempt);
+    let updatedProfile = data.profile;
+    if (data.profile.lifecycleState === 'FIRST_WORKOUT_COMPLETE') {
+      updatedProfile = { ...data.profile, lifecycleState: 'ACTIVE_USER' };
+      await StorageService.saveProfile(updatedProfile);
+    }
     setData((prev) => ({
       ...prev,
+      profile: updatedProfile,
       practiceHistory: newHistory,
       techniqueProgress: {
         ...prev.techniqueProgress,
@@ -214,7 +225,27 @@ export const NavigationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       status: isGraduated ? 'graduated' : 'active',
     };
 
-    await saveRetentionMemory(updatedMemory);
+    let updatedProfile = data.profile;
+    if (data.profile.lifecycleState === 'FIRST_WORKOUT_COMPLETE') {
+      updatedProfile = { ...data.profile, lifecycleState: 'ACTIVE_USER' };
+      await StorageService.saveProfile(updatedProfile);
+    }
+
+    const existingIdx = (data.retentionMemories || []).findIndex((m) => m.id === updatedMemory.id);
+    let updatedMemories: ActiveRetentionMemory[];
+    if (existingIdx >= 0) {
+      updatedMemories = [...data.retentionMemories];
+      updatedMemories[existingIdx] = updatedMemory;
+    } else {
+      updatedMemories = [updatedMemory, ...(data.retentionMemories || [])];
+    }
+    await StorageService.saveRetentionMemories(updatedMemories);
+
+    setData((prev) => ({
+      ...prev,
+      profile: updatedProfile,
+      retentionMemories: updatedMemories,
+    }));
   };
 
   const activeRetentionMemory = (data.retentionMemories || []).find((m) => m.status === 'active') || data.retentionMemories?.[0];

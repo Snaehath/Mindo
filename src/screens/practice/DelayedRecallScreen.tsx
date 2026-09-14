@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput } from 'react-native';
+import React, { useState, useMemo, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, BackHandler } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '../../navigation/NavigationContext';
@@ -47,6 +47,35 @@ export const DelayedRecallScreen: React.FC = () => {
   // Spatial hint level: 0 = closed, 1 = location cue, 2 = sensory clue
   const [hintLevel, setHintLevel] = useState<0 | 1 | 2>(0);
 
+  // Double-tap race condition guard
+  const [isFinishing, setIsFinishing] = useState(false);
+
+  // Android hardware back press support
+  useEffect(() => {
+    const onBackPress = () => {
+      if (phase === 'walk') {
+        goBack();
+        return true;
+      }
+      if (phase === 'recall') {
+        if (currentQuestionIdx > 0) {
+          setCurrentQuestionIdx(currentQuestionIdx - 1);
+          return true;
+        }
+        setPhase('walk');
+        return true;
+      }
+      if (phase === 'result') {
+        navigate('home');
+        return true;
+      }
+      return false;
+    };
+
+    const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => sub.remove();
+  }, [phase, currentQuestionIdx]);
+
   // 4 choices for current spot
   const currentRecallOptions = useMemo(() => {
     if (phase !== 'recall') return [];
@@ -73,6 +102,9 @@ export const DelayedRecallScreen: React.FC = () => {
     if (currentQuestionIdx < items.length - 1) {
       setCurrentQuestionIdx(currentQuestionIdx + 1);
     } else {
+      if (isFinishing) return;
+      setIsFinishing(true);
+
       // Tally retention score
       let correct = 0;
       items.forEach((it, idx) => {

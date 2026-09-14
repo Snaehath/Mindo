@@ -8,6 +8,7 @@ import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
 import { colors, typography, spacing, radius } from '../../theme';
 import { calculateRecallStrength } from '../../utils/metrics';
+import { isCapacityLevelUnlocked } from '../../utils/capacity';
 import { ActiveRetentionMemory, UserPalace } from '../../types';
 
 export const HomeScreen: React.FC = () => {
@@ -36,9 +37,9 @@ export const HomeScreen: React.FC = () => {
   const now = Date.now();
   const activeMemories = (retentionMemories || []).filter((m) => m.status === 'active');
 
-  // Due memories (either scheduled time has passed, or has 0 reviews completed)
+  // Due memories (scheduled time has arrived or passed)
   const dueMemories = activeMemories.filter(
-    (m) => now >= new Date(m.nextReviewDate).getTime() || m.reviews.length === 0
+    (m) => now >= new Date(m.nextReviewDate).getTime()
   );
 
   const primaryDueMemory: ActiveRetentionMemory | undefined =
@@ -54,20 +55,16 @@ export const HomeScreen: React.FC = () => {
     overdueMemories.find((m) => m.id !== primaryDueMemory?.id) ||
     (dueMemories.length > 1 ? dueMemories[1] : undefined);
 
-  // 3. Current Capacity Level Calculation
-  const level1Passes = (practiceHistory || []).filter((h) => h.level === 1 && h.accuracy >= 80);
-  const level2Passes = (practiceHistory || []).filter((h) => h.level === 2 && h.accuracy >= 80);
-  const level3Passes = (practiceHistory || []).filter((h) => h.level === 3 && h.accuracy >= 80);
-
+  // 3. Current Capacity Level Calculation (Single source of truth via capacity.ts)
   let workoutLevel = 1;
   let workoutItemCount = 5;
-  if (level3Passes.length > 0) {
+  if (isCapacityLevelUnlocked(4, practiceHistory)) {
     workoutLevel = 4;
     workoutItemCount = 20;
-  } else if (level2Passes.length > 0) {
+  } else if (isCapacityLevelUnlocked(3, practiceHistory)) {
     workoutLevel = 3;
     workoutItemCount = 15;
-  } else if (level1Passes.length > 0) {
+  } else if (isCapacityLevelUnlocked(2, practiceHistory)) {
     workoutLevel = 2;
     workoutItemCount = 10;
   }
@@ -272,7 +269,7 @@ export const HomeScreen: React.FC = () => {
           const statusText = activeMemory
             ? getRetentionStatusLabel(activeMemory)
             : 'Ready for workout';
-          const isDue = activeMemory && (now >= new Date(activeMemory.nextReviewDate).getTime() || activeMemory.reviews.length === 0);
+          const isDue = activeMemory && now >= new Date(activeMemory.nextReviewDate).getTime();
 
           return (
             <TouchableOpacity
