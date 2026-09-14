@@ -62,7 +62,7 @@ export const NavigationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         masteryLevel: 'beginner',
         totalPractices: 0,
         bestScore: 0,
-        averageAccuracy: 10,
+        averageAccuracy: 0,
       },
       linking: {
         techniqueId: 'linking',
@@ -70,7 +70,7 @@ export const NavigationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         masteryLevel: 'beginner',
         totalPractices: 0,
         bestScore: 0,
-        averageAccuracy: 10,
+        averageAccuracy: 0,
       },
       peg: {
         techniqueId: 'peg',
@@ -78,7 +78,7 @@ export const NavigationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         masteryLevel: 'beginner',
         totalPractices: 0,
         bestScore: 0,
-        averageAccuracy: 10,
+        averageAccuracy: 0,
       },
     },
     palaces: [],

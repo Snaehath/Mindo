@@ -8,10 +8,18 @@ import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
 import { colors, typography, spacing, radius } from '../../theme';
 import { techniqueModules } from '../../data/lessonsData';
+import { calculateRecallStrength } from '../../utils/metrics';
+import { TechniqueType } from '../../types';
 
 export const HomeScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
-  const { techniqueProgress, navigate, activeRetentionMemory } = useNavigation();
+  const {
+    techniqueProgress,
+    navigate,
+    activeRetentionMemory,
+    practiceHistory,
+    retentionMemories,
+  } = useNavigation();
 
   const getGreeting = (): string => {
     const hour = new Date().getHours();
@@ -20,44 +28,31 @@ export const HomeScreen: React.FC = () => {
     return 'Good evening 👋';
   };
 
-  // Calculate individual skill strengths (starts at 10% for new users)
-  const getSkillStrength = (completedSteps: number, totalPractices: number, bestScore: number) => {
-    const base = 10; // Baseline floor for brand new users
-    const stepPart = (completedSteps / 6) * 45; // up to 45% from steps
-    const practicePart = Math.min(25, totalPractices * 5); // up to 25% from workouts
-    const scorePart = Math.min(20, (bestScore / 15) * 20); // up to 20% from capacity
-    return Math.max(10, Math.min(100, Math.round(base + stepPart + practicePart + scorePart)));
+  // Grounded Recall Strength calculation
+  const recallMetrics = calculateRecallStrength(practiceHistory, retentionMemories);
+  const overallStrength = recallMetrics.overallStrength;
+
+  // Genuine accuracy for individual techniques based on verified attempts
+  const getTechniqueStrength = (techId: TechniqueType): number | null => {
+    const attempts = (practiceHistory || []).filter((h) => h.techniqueId === techId);
+    if (attempts.length === 0) return null;
+    const recent = attempts.slice(0, 5);
+    return Math.round(
+      recent.reduce((sum, a) => sum + (a.accuracy || 0), 0) / recent.length
+    );
   };
 
-  const getSkillStage = (strength: number): string => {
-    if (strength < 25) return 'New';
+  const getSkillStage = (strength: number | null): string => {
+    if (strength === null) return 'New';
     if (strength < 50) return 'Learning';
     if (strength < 75) return 'Building';
     if (strength < 90) return 'Skilled';
     return 'Strong';
   };
 
-  const palaceStrength = getSkillStrength(
-    techniqueProgress.palace.completedSteps,
-    techniqueProgress.palace.totalPractices,
-    techniqueProgress.palace.bestScore
-  );
-  const linkingStrength = getSkillStrength(
-    techniqueProgress.linking.completedSteps,
-    techniqueProgress.linking.totalPractices,
-    techniqueProgress.linking.bestScore
-  );
-  const pegStrength = getSkillStrength(
-    techniqueProgress.peg.completedSteps,
-    techniqueProgress.peg.totalPractices,
-    techniqueProgress.peg.bestScore
-  );
-
-  // Overall Recall Strength (starts at 10% minimum)
-  const overallStrength = Math.max(
-    10,
-    Math.round(palaceStrength * 0.5 + linkingStrength * 0.25 + pegStrength * 0.25)
-  );
+  const palaceStrength = getTechniqueStrength('palace');
+  const linkingStrength = getTechniqueStrength('linking');
+  const pegStrength = getTechniqueStrength('peg');
 
   // Check if any retention memories need attention / refresh
   const isRetentionDue =
@@ -128,27 +123,45 @@ export const HomeScreen: React.FC = () => {
           <Text style={styles.batteryHeaderLabel}>RECALL STRENGTH</Text>
           <MaterialCommunityIcons
             name={
-              overallStrength >= 80
+              overallStrength === null
+                ? 'battery-outline'
+                : overallStrength >= 80
                 ? 'battery-high'
                 : overallStrength >= 50
                 ? 'battery-medium'
                 : 'battery-low'
             }
             size={22}
-            color={colors.palace}
+            color={overallStrength === null ? colors.textMuted : colors.palace}
           />
         </View>
 
         <View style={styles.strengthScoreRow}>
-          <Text style={styles.strengthNumber}>{overallStrength}%</Text>
+          <Text
+            style={[
+              styles.strengthNumber,
+              overallStrength === null && { fontSize: 24, fontWeight: '700' },
+            ]}
+          >
+            {overallStrength !== null ? `${overallStrength}%` : 'Not measured yet'}
+          </Text>
           <Text style={styles.strengthStatusTag}>
-            {overallStrength >= 80 ? 'Looking strong' : 'Building consistency'}
+            {overallStrength !== null
+              ? overallStrength >= 80
+                ? 'Looking strong'
+                : 'Building consistency'
+              : 'Complete a workout'}
           </Text>
         </View>
 
         {/* Tactile Battery Bar */}
         <View style={styles.batteryTrack}>
-          <View style={[styles.batteryFill, { width: `${overallStrength}%` }]} />
+          <View
+            style={[
+              styles.batteryFill,
+              { width: overallStrength !== null ? `${overallStrength}%` : '0%' },
+            ]}
+          />
         </View>
 
         {/* Coach Context & One Obvious Next Action */}
@@ -167,7 +180,9 @@ export const HomeScreen: React.FC = () => {
         ) : (
           <View style={styles.actionBlock}>
             <Text style={styles.coachText}>
-              Your recall is holding well. Ready for today's drill?
+              {overallStrength === null
+                ? 'Ready for your first memory workout?'
+                : 'Your recall is holding well. Ready for today\'s drill?'}
             </Text>
             <Button
               label={`Start: ${todayTraining.title} →`}
@@ -197,14 +212,17 @@ export const HomeScreen: React.FC = () => {
               <View style={styles.skillTitleRow}>
                 <Text style={styles.skillName}>Memory Palace</Text>
                 <Text style={[styles.skillPercent, { color: colors.palace }]}>
-                  {palaceStrength}% · {getSkillStage(palaceStrength)}
+                  {palaceStrength !== null ? `${palaceStrength}%` : '—'} · {getSkillStage(palaceStrength)}
                 </Text>
               </View>
               <View style={styles.miniTrack}>
                 <View
                   style={[
                     styles.miniFill,
-                    { width: `${palaceStrength}%`, backgroundColor: colors.palace },
+                    {
+                      width: palaceStrength !== null ? `${palaceStrength}%` : '0%',
+                      backgroundColor: colors.palace,
+                    },
                   ]}
                 />
               </View>
@@ -226,14 +244,17 @@ export const HomeScreen: React.FC = () => {
               <View style={styles.skillTitleRow}>
                 <Text style={styles.skillName}>Story Linking</Text>
                 <Text style={[styles.skillPercent, { color: colors.linking }]}>
-                  {linkingStrength}% · {getSkillStage(linkingStrength)}
+                  {linkingStrength !== null ? `${linkingStrength}%` : '—'} · {getSkillStage(linkingStrength)}
                 </Text>
               </View>
               <View style={styles.miniTrack}>
                 <View
                   style={[
                     styles.miniFill,
-                    { width: `${linkingStrength}%`, backgroundColor: colors.linking },
+                    {
+                      width: linkingStrength !== null ? `${linkingStrength}%` : '0%',
+                      backgroundColor: colors.linking,
+                    },
                   ]}
                 />
               </View>
@@ -255,14 +276,17 @@ export const HomeScreen: React.FC = () => {
               <View style={styles.skillTitleRow}>
                 <Text style={styles.skillName}>Peg System</Text>
                 <Text style={[styles.skillPercent, { color: colors.peg }]}>
-                  {pegStrength}% · {getSkillStage(pegStrength)}
+                  {pegStrength !== null ? `${pegStrength}%` : '—'} · {getSkillStage(pegStrength)}
                 </Text>
               </View>
               <View style={styles.miniTrack}>
                 <View
                   style={[
                     styles.miniFill,
-                    { width: `${pegStrength}%`, backgroundColor: colors.peg },
+                    {
+                      width: pegStrength !== null ? `${pegStrength}%` : '0%',
+                      backgroundColor: colors.peg,
+                    },
                   ]}
                 />
               </View>
