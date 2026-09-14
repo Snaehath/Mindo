@@ -3,29 +3,86 @@ import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '../../navigation/NavigationContext';
 import { ScreenContainer } from '../../components/ScreenContainer';
-import { Header } from '../../components/Header';
 import { Card } from '../../components/Card';
-import { MasteryBadge } from '../../components/Badge';
-import { ProgressBar } from '../../components/ProgressBar';
-import { Button } from '../../components/Button';
 import { colors, typography, spacing, radius } from '../../theme';
-import { techniqueModules } from '../../data/lessonsData';
-import { TechniqueType } from '../../types';
+import { RetentionReview } from '../../types';
 
 export const ProgressScreen: React.FC = () => {
   const {
     profile,
-    techniqueProgress,
     palaces,
     practiceHistory,
+    retentionMemories,
     resetAllData,
     navigate,
   } = useNavigation();
 
-  const techniques: TechniqueType[] = ['palace', 'linking', 'peg'];
+  // 1. CAPACITY METRICS
+  const baselineRecalled = profile.baselineScore?.recalled;
+  const baselineTotal = profile.baselineScore?.total || 8;
 
-  // Latest / best workout score
-  const latestWorkout = practiceHistory[0];
+  // Working capacity: maximum items recalled with >= 60% accuracy in practice
+  let currentWorkingCapacity: number | null = null;
+  if (practiceHistory.length > 0) {
+    const successful = practiceHistory.filter((p) => (p.accuracy || 0) >= 60);
+    if (successful.length > 0) {
+      currentWorkingCapacity = Math.max(...successful.map((p) => p.totalItems));
+    } else {
+      currentWorkingCapacity = practiceHistory[0]?.totalItems || null;
+    }
+  }
+
+  // Honest descriptive delta
+  let comparisonText: string | null = null;
+  if (baselineRecalled !== undefined && currentWorkingCapacity !== null) {
+    const diff = currentWorkingCapacity - baselineRecalled;
+    if (diff > 0) {
+      comparisonText = `${diff} more items than your baseline`;
+    } else if (diff === 0) {
+      comparisonText = 'Matching your raw baseline capacity';
+    } else {
+      comparisonText = 'Training toward your baseline';
+    }
+  }
+
+  // 2. RETENTION LONGEVITY METRICS (1d, 3d, 7d, 14d, 30d)
+  const allReviews: RetentionReview[] = [];
+  (retentionMemories || []).forEach((mem) => {
+    if (Array.isArray(mem.reviews)) {
+      allReviews.push(...mem.reviews);
+    }
+  });
+
+  const getIntervalStats = (
+    day: number
+  ): { tested: boolean; accuracy: number | null } => {
+    const matching = allReviews.filter((r) => r.intervalDay === day);
+    if (matching.length === 0) {
+      return { tested: false, accuracy: null };
+    }
+    const sumPct = matching.reduce(
+      (sum, r) => sum + (r.total > 0 ? (r.score / r.total) * 100 : 0),
+      0
+    );
+    return { tested: true, accuracy: Math.round(sumPct / matching.length) };
+  };
+
+  const retentionIntervals = [1, 3, 7, 14, 30];
+
+  // 3. PALACE INVENTORY STATUS
+  const now = Date.now();
+  const getPalaceRetentionStatus = (palaceId: string) => {
+    const mem = (retentionMemories || []).find(
+      (m) => m.palaceId === palaceId && m.status === 'active'
+    );
+    if (!mem) return 'Ready to train';
+    const reviewTime = new Date(mem.nextReviewDate).getTime();
+    const diffHours = Math.round((reviewTime - now) / (1000 * 3600));
+    if (diffHours <= 0) return 'Next review: Due today';
+    if (diffHours < 24) return 'Next review: Tomorrow';
+    const days = Math.round(diffHours / 24);
+    return `Next review: In ${days} days`;
+  };
 
   const handleReset = () => {
     Alert.alert(
@@ -34,7 +91,7 @@ export const ProgressScreen: React.FC = () => {
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Reset',
+          text: 'Reset Data',
           style: 'destructive',
           onPress: async () => {
             await resetAllData();
@@ -45,349 +102,385 @@ export const ProgressScreen: React.FC = () => {
   };
 
   return (
-    <ScreenContainer scrollable contentContainerStyle={styles.container}>
-      <Header
-        title="Your Progress"
-        subtitle="Skill acquisition & measurable improvement"
-      />
+    <ScreenContainer
+      scrollable
+      contentContainerStyle={[styles.container, { paddingBottom: 40 }]}
+    >
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Progress</Text>
+        <Text style={styles.headerSubtitle}>
+          Evidence-based capacity & retention proof
+        </Text>
+      </View>
 
-      {/* Baseline vs Training Improvement Card */}
-      <Card variant="tinted" tintColor={colors.surfaceMuted} style={styles.baselineCompareCard}>
-        <View style={styles.cardHeaderRow}>
-          <Text style={styles.cardHeaderTitle}>Your Memory Challenge</Text>
-          <MaterialCommunityIcons name="star-shooting" size={20} color={colors.palace} />
-        </View>
+      {/* ─────────────────────────────────────────────────────────────
+          SECTION 1: CAPACITY
+         ───────────────────────────────────────────────────────────── */}
+      <View style={styles.sectionHeadingWrap}>
+        <Text style={styles.sectionHeading}>CAPACITY</Text>
+      </View>
 
+      <Card variant="elevated" style={styles.capacityCard}>
         <View style={styles.compareRow}>
-          <View style={styles.compareItem}>
-            <Text style={styles.compareLabel}>Before Training</Text>
-            <Text style={styles.compareValMuted}>
-              {profile.baselineScore ? `${profile.baselineScore.recalled} / 8` : '—'}
+          {/* Baseline Column */}
+          <View style={styles.compareCol}>
+            <Text style={styles.colLabel}>Baseline</Text>
+            <Text style={styles.colValueMuted}>
+              {baselineRecalled !== undefined
+                ? `${baselineRecalled} / ${baselineTotal}`
+                : '—'}
             </Text>
-            <Text style={styles.compareSub}>Raw recall</Text>
+            <Text style={styles.colSubtext}>Unassisted</Text>
           </View>
 
-          <MaterialCommunityIcons name="arrow-right-thin" size={32} color={colors.textMuted} />
+          <View style={styles.dividerVertical} />
 
-          <View style={styles.compareItem}>
-            <Text style={styles.compareLabel}>After Training</Text>
-            <Text style={styles.compareValBold}>
-              {latestWorkout ? `${latestWorkout.correctItems} / ${latestWorkout.totalItems}` : '—'}
+          {/* Current Working Capacity Column */}
+          <View style={styles.compareCol}>
+            <Text style={styles.colLabel}>Current Working Capacity</Text>
+            <Text style={styles.colValueBold}>
+              {currentWorkingCapacity !== null
+                ? `${currentWorkingCapacity} items`
+                : '—'}
             </Text>
-            <Text style={styles.compareSub}>With techniques</Text>
+            <Text style={styles.colSubtext}>With Memory Palace</Text>
           </View>
         </View>
 
-        {profile.baselineScore && latestWorkout && (
-          <View style={styles.improvementBadge}>
-            <Text style={styles.improvementBadgeText}>
-              You improved by +
-              {Math.max(0, latestWorkout.correctItems - profile.baselineScore.recalled)} items. 🎉
-            </Text>
-          </View>
+        {comparisonText && (
+          <>
+            <View style={styles.dividerHorizontal} />
+            <View style={styles.calloutRow}>
+              <MaterialCommunityIcons
+                name="arrow-up-circle"
+                size={18}
+                color={colors.palace}
+                style={{ marginRight: spacing.xs }}
+              />
+              <Text style={styles.calloutText}>{comparisonText}</Text>
+            </View>
+          </>
         )}
       </Card>
 
-      {/* Technique Mastery Levels */}
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Technique Mastery</Text>
+      {/* ─────────────────────────────────────────────────────────────
+          SECTION 2: RETENTION LONGEVITY
+         ───────────────────────────────────────────────────────────── */}
+      <View style={styles.sectionHeadingWrap}>
+        <Text style={styles.sectionHeading}>RETENTION LONGEVITY</Text>
+        <Text style={styles.sectionSubHeading}>Your memory over time</Text>
       </View>
 
-      <View style={styles.masteryList}>
-        {techniques.map((techId) => {
-          const mod = techniqueModules[techId];
-          const prog = techniqueProgress[techId];
+      <Card style={styles.retentionCard}>
+        {retentionIntervals.map((interval, idx) => {
+          const stats = getIntervalStats(interval);
+          const isLast = idx === retentionIntervals.length - 1;
 
           return (
-            <Card key={techId} style={styles.masteryCard}>
-              <View style={styles.masteryHeader}>
-                <View style={styles.masteryTitleGroup}>
-                  <MaterialCommunityIcons name={mod.icon as any} size={22} color={mod.badgeColor} />
-                  <Text style={styles.masteryName}>{mod.title}</Text>
+            <View key={interval}>
+              <View style={styles.retentionRow}>
+                <Text style={styles.intervalDayText}>
+                  {interval} {interval === 1 ? 'DAY' : 'DAYS'}
+                </Text>
+
+                <View style={styles.intervalResultWrap}>
+                  {stats.tested ? (
+                    <>
+                      <MaterialCommunityIcons
+                        name="check"
+                        size={16}
+                        color={colors.success}
+                        style={{ marginRight: 6 }}
+                      />
+                      <Text style={styles.intervalAccuracyText}>
+                        {stats.accuracy}%
+                      </Text>
+                    </>
+                  ) : (
+                    <>
+                      <Text style={styles.intervalUntestedDash}>—</Text>
+                      <Text style={styles.intervalUntestedText}>
+                        Not tested
+                      </Text>
+                    </>
+                  )}
                 </View>
-                <MasteryBadge level={prog.masteryLevel} />
               </View>
 
-              <View style={styles.masteryMetricsRow}>
-                <View style={styles.metricCol}>
-                  <Text style={styles.metricVal}>
-                    {prog.averageAccuracy > 0 ? `${prog.averageAccuracy}%` : '—'}
+              {!isLast && <View style={styles.intervalDivider} />}
+            </View>
+          );
+        })}
+      </Card>
+
+      {/* ─────────────────────────────────────────────────────────────
+          SECTION 3: ACTIVE PALACES
+         ───────────────────────────────────────────────────────────── */}
+      <View style={styles.sectionHeadingWrap}>
+        <Text style={styles.sectionHeading}>ACTIVE PALACES</Text>
+      </View>
+
+      <View style={styles.palacesList}>
+        {palaces.map((p) => {
+          const status = getPalaceRetentionStatus(p.id);
+
+          return (
+            <Card key={p.id} style={styles.palaceCard}>
+              <View style={styles.palaceRow}>
+                <View style={styles.palaceIconCircle}>
+                  <MaterialCommunityIcons
+                    name="castle"
+                    size={20}
+                    color={colors.palace}
+                  />
+                </View>
+
+                <View style={styles.palaceInfo}>
+                  <Text style={styles.palaceName}>{p.name}</Text>
+                  <Text style={styles.palaceMeta}>
+                    {p.spots.length} stations · {status}
                   </Text>
-                  <Text style={styles.metricLabel}>Recall accuracy</Text>
                 </View>
-                <View style={styles.metricDivider} />
-                <View style={styles.metricCol}>
-                  <Text style={styles.metricVal}>{prog.totalPractices}</Text>
-                  <Text style={styles.metricLabel}>Workouts</Text>
-                </View>
-                <View style={styles.metricDivider} />
-                <View style={styles.metricCol}>
-                  <Text style={styles.metricVal}>{prog.bestScore}</Text>
-                  <Text style={styles.metricLabel}>Personal best</Text>
-                </View>
+
+                <TouchableOpacity
+                  style={styles.palaceActionBtn}
+                  onPress={() =>
+                    navigate('practiceSession', {
+                      techniqueId: 'palace',
+                      level: 1,
+                      itemCount: 5,
+                      palaceId: p.id,
+                    })
+                  }
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.palaceActionText}>Train</Text>
+                </TouchableOpacity>
               </View>
             </Card>
           );
         })}
       </View>
 
-      {/* Memory Palaces Inventory */}
-      <View style={styles.sectionHeaderRow}>
-        <Text style={styles.sectionTitle}>Your Memory Palaces ({palaces.length})</Text>
-        <TouchableOpacity onPress={() => navigate('palaceBuilder')}>
-          <Text style={styles.addPalaceLink}>+ Add Palace</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.palacesList}>
-        {palaces.map((p) => (
-          <Card key={p.id} style={styles.palaceItemCard}>
-            <View style={styles.palaceRow}>
-              <View style={styles.palaceIconBox}>
-                <MaterialCommunityIcons
-                  name={p.iconName as any || 'home'}
-                  size={24}
-                  color={colors.palace}
-                />
-              </View>
-              <View style={styles.palaceTextWrap}>
-                <Text style={styles.palaceItemName}>{p.name}</Text>
-                <Text style={styles.palaceItemSub}>{p.spots.length} sequential spots</Text>
-              </View>
-              <Button
-                label="Drill"
-                onPress={() =>
-                  navigate('practiceSession', {
-                    techniqueId: 'palace',
-                    level: 1,
-                    palaceId: p.id,
-                  })
-                }
-                variant="outline"
-                size="normal"
-                style={styles.drillBtn}
-              />
-            </View>
-          </Card>
-        ))}
-      </View>
-
-      {/* Gym Stats Footer & Reset Option */}
-      <View style={styles.footerSection}>
-        <View style={styles.streakFooterBox}>
-          <MaterialCommunityIcons name="fire" size={24} color="#EA580C" />
-          <Text style={styles.streakFooterText}>
-            {profile.streakDays}-Day Memory Training Habit
-          </Text>
-        </View>
-
-        <TouchableOpacity onPress={handleReset} style={styles.resetBtn}>
-          <Text style={styles.resetText}>Reset All App Data</Text>
-        </TouchableOpacity>
-      </View>
+      {/* ─────────────────────────────────────────────────────────────
+          RESET DATA (Clean Testing & User Control)
+         ───────────────────────────────────────────────────────────── */}
+      <TouchableOpacity
+        style={styles.resetBtn}
+        onPress={handleReset}
+        activeOpacity={0.7}
+      >
+        <Text style={styles.resetBtnText}>Reset All Training Data</Text>
+      </TouchableOpacity>
     </ScreenContainer>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    paddingTop: spacing.m,
-    paddingBottom: spacing.xxl,
+    paddingTop: spacing.l,
   },
-  baselineCompareCard: {
+  header: {
+    marginBottom: spacing.l,
+  },
+  headerTitle: {
+    ...typography.headingXL,
+    fontSize: 28,
+    color: colors.textPrimary,
+    marginBottom: 2,
+  },
+  headerSubtitle: {
+    ...typography.bodyM,
+    color: colors.textSecondary,
+  },
+
+  // Section Headings
+  sectionHeadingWrap: {
+    marginBottom: spacing.s,
+    marginTop: spacing.m,
+  },
+  sectionHeading: {
+    ...typography.caption,
+    fontWeight: '800',
+    color: colors.palace,
+    letterSpacing: 1,
+  },
+  sectionSubHeading: {
+    ...typography.bodyS,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+
+  // Capacity Card
+  capacityCard: {
+    backgroundColor: colors.surface,
     padding: spacing.l,
     borderRadius: radius.xl,
-    marginBottom: spacing.xl,
-  },
-  cardHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     marginBottom: spacing.m,
-  },
-  cardHeaderTitle: {
-    ...typography.caption,
-    color: colors.textMuted,
-    fontWeight: '700',
+    borderWidth: 1.5,
+    borderColor: colors.border,
   },
   compareRow: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    marginVertical: spacing.s,
-  },
-  compareItem: {
     alignItems: 'center',
   },
-  compareLabel: {
-    ...typography.bodyS,
-    color: colors.textSecondary,
-    marginBottom: 4,
-  },
-  compareValMuted: {
-    ...typography.headingXL,
-    fontSize: 26,
-    color: colors.textMuted,
-  },
-  compareValBold: {
-    ...typography.headingXL,
-    fontSize: 26,
-    color: colors.palace,
-    fontWeight: '800',
-  },
-  compareSub: {
-    ...typography.bodyS,
-    fontSize: 11,
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-  improvementBadge: {
-    marginTop: spacing.m,
-    backgroundColor: colors.successLight,
-    paddingVertical: spacing.s,
-    paddingHorizontal: spacing.m,
-    borderRadius: radius.pill,
-    alignItems: 'center',
-  },
-  improvementBadgeText: {
-    ...typography.bodyM,
-    fontWeight: '700',
-    color: colors.success,
-  },
-  sectionHeader: {
-    marginBottom: spacing.m,
-  },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.m,
-    marginTop: spacing.s,
-  },
-  sectionTitle: {
-    ...typography.headingM,
-    color: colors.textPrimary,
-  },
-  addPalaceLink: {
-    ...typography.bodyM,
-    fontWeight: '700',
-    color: colors.palace,
-  },
-  masteryList: {
-    gap: spacing.m,
-    marginBottom: spacing.xl,
-  },
-  masteryCard: {
-    padding: spacing.l,
-    borderRadius: radius.l,
-  },
-  masteryHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.m,
-  },
-  masteryTitleGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.s,
-  },
-  masteryName: {
-    ...typography.headingM,
-    fontSize: 16,
-  },
-  masteryMetricsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: colors.surfaceMuted,
-    borderRadius: radius.m,
-    paddingVertical: spacing.s,
-    paddingHorizontal: spacing.m,
-  },
-  metricCol: {
-    alignItems: 'center',
+  compareCol: {
     flex: 1,
+    alignItems: 'center',
+    paddingVertical: spacing.s,
   },
-  metricVal: {
-    ...typography.headingM,
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  metricLabel: {
-    ...typography.bodyS,
-    fontSize: 10,
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-  metricDivider: {
+  dividerVertical: {
     width: 1,
-    height: 24,
+    height: '80%',
     backgroundColor: colors.border,
   },
+  colLabel: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    fontWeight: '600',
+    marginBottom: spacing.xs,
+    textAlign: 'center',
+  },
+  colValueMuted: {
+    ...typography.headingXL,
+    fontSize: 26,
+    color: colors.textSecondary,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  colValueBold: {
+    ...typography.headingXL,
+    fontSize: 26,
+    color: colors.textPrimary,
+    fontWeight: '800',
+    marginBottom: 2,
+  },
+  colSubtext: {
+    ...typography.caption,
+    color: colors.textMuted,
+  },
+  dividerHorizontal: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginVertical: spacing.m,
+  },
+  calloutRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  calloutText: {
+    ...typography.bodyM,
+    fontWeight: '700',
+    color: colors.palace,
+  },
+
+  // Retention Longevity Card
+  retentionCard: {
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.l,
+    paddingVertical: spacing.m,
+    borderRadius: radius.xl,
+    marginBottom: spacing.m,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+  },
+  retentionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: spacing.m,
+  },
+  intervalDayText: {
+    ...typography.bodyM,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    letterSpacing: 0.5,
+  },
+  intervalResultWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  intervalAccuracyText: {
+    ...typography.bodyM,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  intervalUntestedDash: {
+    ...typography.bodyM,
+    color: colors.textMuted,
+    marginRight: 6,
+  },
+  intervalUntestedText: {
+    ...typography.bodyS,
+    color: colors.textMuted,
+    fontStyle: 'italic',
+  },
+  intervalDivider: {
+    height: 1,
+    backgroundColor: colors.border,
+  },
+
+  // Active Palaces List
   palacesList: {
     gap: spacing.s,
-    marginBottom: spacing.xxl,
+    marginBottom: spacing.xl,
   },
-  palaceItemCard: {
+  palaceCard: {
     padding: spacing.m,
     borderRadius: radius.l,
+    borderWidth: 1.5,
+    borderColor: colors.border,
   },
   palaceRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  palaceIconBox: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+  palaceIconCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     backgroundColor: colors.palaceLight,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: spacing.m,
   },
-  palaceTextWrap: {
+  palaceInfo: {
     flex: 1,
   },
-  palaceItemName: {
-    ...typography.bodyL,
-    fontWeight: '600',
+  palaceName: {
+    ...typography.headingM,
+    fontSize: 16,
     color: colors.textPrimary,
+    marginBottom: 2,
   },
-  palaceItemSub: {
-    ...typography.bodyS,
+  palaceMeta: {
+    ...typography.caption,
     color: colors.textSecondary,
-    marginTop: 2,
   },
-  drillBtn: {
+  palaceActionBtn: {
+    backgroundColor: colors.palaceLight,
+    paddingHorizontal: spacing.m,
     paddingVertical: 6,
-    paddingHorizontal: 12,
-  },
-  footerSection: {
-    alignItems: 'center',
-    gap: spacing.m,
-    marginTop: spacing.s,
-  },
-  streakFooterBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.s,
-    backgroundColor: '#FFEDD5',
-    paddingVertical: spacing.s,
-    paddingHorizontal: spacing.l,
     borderRadius: radius.pill,
   },
-  streakFooterText: {
-    ...typography.bodyM,
+  palaceActionText: {
+    ...typography.caption,
     fontWeight: '700',
-    color: '#9A3412',
+    color: colors.palace,
   },
+
+  // Reset Button
   resetBtn: {
-    padding: spacing.s,
+    alignSelf: 'center',
+    paddingVertical: spacing.m,
+    paddingHorizontal: spacing.l,
   },
-  resetText: {
-    ...typography.bodyS,
-    color: colors.danger,
+  resetBtnText: {
+    ...typography.caption,
+    color: colors.textMuted,
+    fontWeight: '600',
     textDecorationLine: 'underline',
   },
 });
