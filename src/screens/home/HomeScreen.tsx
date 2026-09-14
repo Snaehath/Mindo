@@ -6,6 +6,8 @@ import { useNavigation } from '../../navigation/NavigationContext';
 import { ScreenContainer } from '../../components/ScreenContainer';
 import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
+import { Badge } from '../../components/Badge';
+import { ProgressBar } from '../../components/ProgressBar';
 import { colors, typography, spacing, radius } from '../../theme';
 import { calculateRecallStrength } from '../../utils/metrics';
 import { isCapacityLevelUnlocked } from '../../utils/capacity';
@@ -29,15 +31,15 @@ export const HomeScreen: React.FC = () => {
     return 'Good evening';
   };
 
-  // 1. Recall Strength Calculation (Grounded & Honest)
+  // 1. Recall strength metrics
   const recallMetrics = calculateRecallStrength(practiceHistory, retentionMemories);
   const overallStrength = recallMetrics.overallStrength;
 
-  // 2. Retention Priority & Needs Attention Logic
+  // 2. Retention priority & overdue evaluation
   const now = Date.now();
   const activeMemories = (retentionMemories || []).filter((m) => m.status === 'active');
 
-  // Due memories (scheduled time has arrived or passed)
+  // Due memories (scheduled time has arrived)
   const dueMemories = activeMemories.filter(
     (m) => now >= new Date(m.nextReviewDate).getTime()
   );
@@ -45,17 +47,17 @@ export const HomeScreen: React.FC = () => {
   const primaryDueMemory: ActiveRetentionMemory | undefined =
     dueMemories[0] || (activeRetentionMemory && dueMemories.includes(activeRetentionMemory) ? activeRetentionMemory : undefined);
 
-  // Overdue memories (>24 hours past scheduled review date)
+  // Overdue memories (>24h past review date)
   const overdueMemories = activeMemories.filter(
     (m) => now - new Date(m.nextReviewDate).getTime() > 24 * 60 * 60 * 1000
   );
 
-  // Needs Attention appears if an overdue memory exists (different from primary hero if possible)
+  // Secondary alert for overdue memories
   const needsAttentionMemory: ActiveRetentionMemory | undefined =
     overdueMemories.find((m) => m.id !== primaryDueMemory?.id) ||
     (dueMemories.length > 1 ? dueMemories[1] : undefined);
 
-  // 3. Current Capacity Level Calculation (Single source of truth via capacity.ts)
+  // 3. Current capacity level calculation
   let workoutLevel = 1;
   let workoutItemCount = 5;
   if (isCapacityLevelUnlocked(4, practiceHistory)) {
@@ -92,33 +94,26 @@ export const HomeScreen: React.FC = () => {
         { paddingBottom: Math.max(insets.bottom, 24) + 20 },
       ]}
     >
-      {/* ─────────────────────────────────────────────────────────────
-          1. HEADER: QUIET GREETING & APP IDENTITY
-         ───────────────────────────────────────────────────────────── */}
+      {/* 1. Header: Greeting & Status */}
       <View style={styles.header}>
         <View>
           <Text style={styles.greeting}>{getGreeting()}</Text>
           <Text style={styles.brandTitle}>MINDO</Text>
         </View>
-        <View style={styles.brandBadge}>
-          <MaterialCommunityIcons name="brain" size={16} color={colors.palace} />
-          <Text style={styles.brandBadgeText}>
-            {overallStrength !== null ? `${overallStrength}%` : 'Calibrating'}
-          </Text>
-        </View>
+        <Badge
+          label={overallStrength !== null ? `${overallStrength}%` : 'Calibrating'}
+          variant="palace"
+          iconName="brain"
+          size="normal"
+        />
       </View>
 
-      {/* ─────────────────────────────────────────────────────────────
-          2. PRIMARY ACTION HERO (Visual Centerpiece - Action First)
-         ───────────────────────────────────────────────────────────── */}
+      {/* 2. Primary Action Hero */}
       {primaryDueMemory ? (
-        // STATE: RETENTION DUE (Highest Priority)
+        // State: Retention due (highest priority)
         <Card variant="elevated" style={styles.heroActionCardDue}>
           <View style={styles.heroHeaderRow}>
-            <View style={styles.heroDueTagBadge}>
-              <MaterialCommunityIcons name="bell-ring" size={14} color={colors.palace} />
-              <Text style={styles.heroDueTagText}>RETENTION CHECK-IN DUE</Text>
-            </View>
+            <Badge label="RETENTION CHECK-IN DUE" variant="palace" iconName="bell-ring" size="small" />
           </View>
 
           <Text style={styles.heroTitle}>
@@ -138,13 +133,10 @@ export const HomeScreen: React.FC = () => {
           </View>
         </Card>
       ) : (
-        // STATE: NO RETENTION DUE -> TODAY'S WORKOUT
+        // State: No retention due -> Today's workout
         <Card variant="elevated" style={styles.heroActionCardWorkout}>
           <View style={styles.heroHeaderRow}>
-            <View style={styles.heroWorkoutTagBadge}>
-              <MaterialCommunityIcons name="dumbbell" size={14} color={colors.palace} />
-              <Text style={styles.heroWorkoutTagText}>TODAY'S WORKOUT</Text>
-            </View>
+            <Badge label="TODAY'S WORKOUT" variant="palace" iconName="dumbbell" size="small" />
             <Text style={styles.heroCapacityPill}>{workoutItemCount} items</Text>
           </View>
 
@@ -173,9 +165,7 @@ export const HomeScreen: React.FC = () => {
         </Card>
       )}
 
-      {/* ─────────────────────────────────────────────────────────────
-          3. RECALL STRENGTH CARD (Calm Metric, Secondary to Action)
-         ───────────────────────────────────────────────────────────── */}
+      {/* 3. Recall Strength Card */}
       <Card variant="tinted" tintColor={colors.palaceLight} style={styles.metricCard}>
         <View style={styles.metricHeaderRow}>
           <Text style={styles.metricHeaderLabel}>RECALL STRENGTH</Text>
@@ -208,15 +198,13 @@ export const HomeScreen: React.FC = () => {
           </Text>
         </View>
 
-        {/* Tactile Gauge Bar */}
-        <View style={styles.gaugeTrack}>
-          <View
-            style={[
-              styles.gaugeFill,
-              { width: overallStrength !== null ? `${overallStrength}%` : '0%' },
-            ]}
-          />
-        </View>
+        {/* Reusable Progress Bar */}
+        <ProgressBar
+          progress={overallStrength !== null ? overallStrength / 100 : 0}
+          color={colors.palace}
+          height={8}
+          style={styles.gaugeBar}
+        />
 
         <Text style={styles.metricFooterNote}>
           {overallStrength !== null
@@ -225,9 +213,7 @@ export const HomeScreen: React.FC = () => {
         </Text>
       </Card>
 
-      {/* ─────────────────────────────────────────────────────────────
-          4. NEEDS ATTENTION CARD (Conditional - Fading / Overdue)
-         ───────────────────────────────────────────────────────────── */}
+      {/* 4. Needs Attention Card */}
       {needsAttentionMemory && (
         <Card variant="tinted" tintColor={colors.surfaceMuted} style={styles.attentionCard}>
           <View style={styles.attentionHeaderRow}>
@@ -250,9 +236,7 @@ export const HomeScreen: React.FC = () => {
         </Card>
       )}
 
-      {/* ─────────────────────────────────────────────────────────────
-          5. ACTIVE PALACES SECTION (Clean Loci Snapshot)
-         ───────────────────────────────────────────────────────────── */}
+      {/* 5. Active Palaces Section */}
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Active Palaces</Text>
         <TouchableOpacity
@@ -341,22 +325,7 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     letterSpacing: 0.5,
   },
-  brandBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.palaceLight,
-    paddingHorizontal: spacing.m,
-    paddingVertical: 6,
-    borderRadius: radius.pill,
-    gap: 4,
-  },
-  brandBadgeText: {
-    ...typography.caption,
-    fontWeight: '700',
-    color: colors.palace,
-  },
 
-  // Hero Card Styles (Action-First)
   heroActionCardDue: {
     backgroundColor: colors.surface,
     padding: spacing.xl,
@@ -378,36 +347,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: spacing.m,
-  },
-  heroDueTagBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.palaceLight,
-    paddingHorizontal: spacing.s,
-    paddingVertical: 4,
-    borderRadius: radius.pill,
-    gap: 6,
-  },
-  heroDueTagText: {
-    ...typography.caption,
-    fontWeight: '800',
-    color: colors.palace,
-    letterSpacing: 0.8,
-  },
-  heroWorkoutTagBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.palaceLight,
-    paddingHorizontal: spacing.s,
-    paddingVertical: 4,
-    borderRadius: radius.pill,
-    gap: 6,
-  },
-  heroWorkoutTagText: {
-    ...typography.caption,
-    fontWeight: '800',
-    color: colors.palace,
-    letterSpacing: 0.8,
   },
   heroCapacityPill: {
     ...typography.caption,
@@ -472,17 +411,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.palace,
   },
-  gaugeTrack: {
-    height: 8,
-    backgroundColor: colors.surfaceMuted,
-    borderRadius: radius.pill,
-    overflow: 'hidden',
+  gaugeBar: {
     marginBottom: spacing.s,
-  },
-  gaugeFill: {
-    height: '100%',
-    backgroundColor: colors.palace,
-    borderRadius: radius.pill,
   },
   metricFooterNote: {
     ...typography.caption,

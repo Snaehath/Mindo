@@ -7,6 +7,7 @@ import { ScreenContainer } from '../../components/ScreenContainer';
 import { Header } from '../../components/Header';
 import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
+import { ProgressBar } from '../../components/ProgressBar';
 import { colors, typography, spacing, radius } from '../../theme';
 import { ActiveRetentionMemory } from '../../types';
 import { practiceItemPool } from '../../data/practiceData';
@@ -141,9 +142,7 @@ export const DelayedRecallScreen: React.FC = () => {
         onBack={phase === 'result' ? undefined : goBack}
       />
 
-      {/* ─────────────────────────────────────────────────────────────
-          PHASE 1: MENTAL WALK (Calm, Non-Punitive)
-         ───────────────────────────────────────────────────────────── */}
+      {/* Phase 1: Mental Walk */}
       {phase === 'walk' && (
         <ScrollView
           showsVerticalScrollIndicator={false}
@@ -184,9 +183,7 @@ export const DelayedRecallScreen: React.FC = () => {
         </ScrollView>
       )}
 
-      {/* ─────────────────────────────────────────────────────────────
-          PHASE 2: ACTIVE RETRIEVAL (With Spatial Hints)
-         ───────────────────────────────────────────────────────────── */}
+      {/* Phase 2: Active Retrieval */}
       {phase === 'recall' && (
         <ScrollView
           showsVerticalScrollIndicator={false}
@@ -199,6 +196,12 @@ export const DelayedRecallScreen: React.FC = () => {
             <Text style={styles.recallCounter}>
               STATION {currentQuestionIdx + 1} OF {items.length}
             </Text>
+            <ProgressBar
+              progress={(currentQuestionIdx + 1) / items.length}
+              color={colors.palace}
+              height={6}
+              style={{ marginTop: spacing.xs, marginBottom: spacing.m }}
+            />
           </View>
 
           <Card style={styles.questionCard}>
@@ -304,9 +307,7 @@ export const DelayedRecallScreen: React.FC = () => {
         </ScrollView>
       )}
 
-      {/* ─────────────────────────────────────────────────────────────
-          PHASE 3: RETENTION RESULTS (Quiet, Coach-Like)
-         ───────────────────────────────────────────────────────────── */}
+      {/* Phase 3: Retention Results */}
       {phase === 'result' && (
         <ScrollView
           showsVerticalScrollIndicator={false}

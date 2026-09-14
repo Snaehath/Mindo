@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '../../navigation/NavigationContext';
 import { ScreenContainer } from '../../components/ScreenContainer';
+import { Header } from '../../components/Header';
 import { Card } from '../../components/Card';
 import { colors, typography, spacing, radius } from '../../theme';
 import { RetentionReview } from '../../types';
@@ -107,16 +108,12 @@ export const ProgressScreen: React.FC = () => {
       contentContainerStyle={[styles.container, { paddingBottom: 40 }]}
     >
       {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Progress</Text>
-        <Text style={styles.headerSubtitle}>
-          Evidence-based capacity & retention proof
-        </Text>
-      </View>
+      <Header
+        title="Progress"
+        subtitle="Evidence-based capacity & retention proof"
+      />
 
-      {/* ─────────────────────────────────────────────────────────────
-          SECTION 1: CAPACITY
-         ───────────────────────────────────────────────────────────── */}
+      {/* Section 1: Capacity */}
       <View style={styles.sectionHeadingWrap}>
         <Text style={styles.sectionHeading}>CAPACITY</Text>
       </View>
@@ -164,9 +161,7 @@ export const ProgressScreen: React.FC = () => {
         )}
       </Card>
 
-      {/* ─────────────────────────────────────────────────────────────
-          SECTION 2: RETENTION LONGEVITY
-         ───────────────────────────────────────────────────────────── */}
+      {/* Section 2: Retention Longevity */}
       <View style={styles.sectionHeadingWrap}>
         <Text style={styles.sectionHeading}>RETENTION LONGEVITY</Text>
         <Text style={styles.sectionSubHeading}>Your memory over time</Text>
@@ -214,9 +209,7 @@ export const ProgressScreen: React.FC = () => {
         })}
       </Card>
 
-      {/* ─────────────────────────────────────────────────────────────
-          SECTION 3: ACTIVE PALACES
-         ───────────────────────────────────────────────────────────── */}
+      {/* Section 3: Active Palaces */}
       <View style={styles.sectionHeadingWrap}>
         <Text style={styles.sectionHeading}>ACTIVE PALACES</Text>
       </View>
@@ -263,9 +256,7 @@ export const ProgressScreen: React.FC = () => {
         })}
       </View>
 
-      {/* ─────────────────────────────────────────────────────────────
-          RESET DATA (Clean Testing & User Control)
-         ───────────────────────────────────────────────────────────── */}
+      {/* Reset Data */}
       <TouchableOpacity
         style={styles.resetBtn}
         onPress={handleReset}
@@ -280,19 +271,6 @@ export const ProgressScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     paddingTop: spacing.l,
-  },
-  header: {
-    marginBottom: spacing.l,
-  },
-  headerTitle: {
-    ...typography.headingXL,
-    fontSize: 28,
-    color: colors.textPrimary,
-    marginBottom: 2,
-  },
-  headerSubtitle: {
-    ...typography.bodyM,
-    color: colors.textSecondary,
   },
 
   // Section Headings

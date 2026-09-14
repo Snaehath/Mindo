@@ -113,14 +113,7 @@ export const OnboardingScreen: React.FC = () => {
     palaces,
   } = useNavigation();
 
-  // Steps:
-  // 1: Welcome
-  // 2: Baseline Test (memorize / test)
-  // 3: Starting Point Benchmark
-  // 4: Build First Palace (Route + Mental Mode walk)
-  // 5: Bizarre Association Encoding (Items 0..3)
-  // 6: Immediate Active Recall (Questions 0..3)
-  // 7: Aha Moment & Day 1 Enrollment
+  // Steps 1..7: Welcome -> Baseline -> Benchmark -> Palace -> Encode -> Recall -> Aha
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4 | 5 | 6 | 7>(1);
 
   // Step 2: Baseline state
@@ -312,9 +305,7 @@ export const OnboardingScreen: React.FC = () => {
         { paddingBottom: Math.max(insets.bottom, 24) + 20 },
       ]}
     >
-      {/* ─────────────────────────────────────────────────────────────
-          STEP 1: WELCOME
-         ───────────────────────────────────────────────────────────── */}
+      {/* Step 1: Welcome */}
       {currentStep === 1 && (
         <View style={styles.stepContainer}>
           <View style={styles.iconCircle}>
@@ -352,9 +343,7 @@ export const OnboardingScreen: React.FC = () => {
         </View>
       )}
 
-      {/* ─────────────────────────────────────────────────────────────
-          STEP 2: RAW BASELINE TEST
-         ───────────────────────────────────────────────────────────── */}
+      {/* Step 2: Raw Baseline Test */}
       {currentStep === 2 && (
         <View style={styles.stepContainer}>
           {testPhase === 'memorize' ? (
@@ -422,9 +411,7 @@ export const OnboardingScreen: React.FC = () => {
         </View>
       )}
 
-      {/* ─────────────────────────────────────────────────────────────
-          STEP 3: STARTING POINT BENCHMARK
-         ───────────────────────────────────────────────────────────── */}
+      {/* Step 3: Starting Point Benchmark */}
       {currentStep === 3 && (
         <View style={styles.stepContainer}>
           <View style={styles.iconCircle}>
@@ -466,9 +453,7 @@ export const OnboardingScreen: React.FC = () => {
         </View>
       )}
 
-      {/* ─────────────────────────────────────────────────────────────
-          STEP 4: BUILD FIRST PALACE (ROUTE & MENTAL MODE WALK)
-         ───────────────────────────────────────────────────────────── */}
+      {/* Step 4: Build First Palace (Route & Mental Walk) */}
       {currentStep === 4 && (
         <View style={styles.stepContainer}>
           <Text style={styles.stepIndicator}>THE METHOD OF LOCI</Text>
@@ -508,9 +493,7 @@ export const OnboardingScreen: React.FC = () => {
         </View>
       )}
 
-      {/* ─────────────────────────────────────────────────────────────
-          STEP 5: BIZARRE ASSOCIATION ENCODING
-         ───────────────────────────────────────────────────────────── */}
+      {/* Step 5: Bizarre Association Encoding */}
       {currentStep === 5 && (
         <View style={styles.stepContainer}>
           <Text style={styles.stepIndicator}>
@@ -570,9 +553,7 @@ export const OnboardingScreen: React.FC = () => {
         </View>
       )}
 
-      {/* ─────────────────────────────────────────────────────────────
-          STEP 6: IMMEDIATE ACTIVE RECALL (RETRIEVAL TEST)
-         ───────────────────────────────────────────────────────────── */}
+      {/* Step 6: Immediate Active Recall */}
       {currentStep === 6 && (
         <View style={styles.stepContainer}>
           <Text style={styles.stepIndicator}>
@@ -605,9 +586,7 @@ export const OnboardingScreen: React.FC = () => {
         </View>
       )}
 
-      {/* ─────────────────────────────────────────────────────────────
-          STEP 7: THE "AHA" MOMENT & ENROLLMENT
-         ───────────────────────────────────────────────────────────── */}
+      {/* Step 7: The "Aha" Moment & Enrollment */}
       {currentStep === 7 && (
         <View style={styles.stepContainer}>
           <View style={styles.iconCircle}>

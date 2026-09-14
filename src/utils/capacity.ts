@@ -14,14 +14,7 @@ export const CAPACITY_LEVELS: CapacityLevel[] = [
   { level: 4, count: 20, label: '20 items', desc: 'Advanced challenge' },
 ];
 
-/**
- * Checks whether a given capacity level (1 - 4) is unlocked.
- * Strict progression:
- * - 5 items: Always unlocked
- * - 10 items: Requires >= 80% recall on 5 items
- * - 15 items: Requires >= 80% recall on 10 items
- * - 20 items: Requires >= 80% recall on 15 items
- */
+// Checks whether capacity level (1-4) is unlocked based on >=80% threshold
 export function isCapacityLevelUnlocked(
   level: number,
   practiceHistory: PracticeAttempt[] = []

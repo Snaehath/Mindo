@@ -11,17 +11,7 @@ export interface RecallStrengthBreakdown {
   stageLabel: string;
 }
 
-/**
- * Calculates Recall Strength (0 - 100) or null if no verified performance data exists yet.
- *
- * Grounded formula:
- * - 40% Recent Immediate Recall Accuracy (last up to 5 attempts)
- * - 40% Delayed Retention Check-in Accuracy (all verified retention reviews)
- * - 20% Capacity Load Handled (linear up to 20 items: maxItems / 20 * 100)
- *
- * When retention reviews have not yet occurred (e.g. Day 1 hasn't arrived),
- * active weights are scaled proportionally across available components.
- */
+// Calculates Recall Strength (0-100) or null if unmeasured
 export function calculateRecallStrength(
   practiceHistory: PracticeAttempt[] = [],
   retentionMemories: ActiveRetentionMemory[] = []

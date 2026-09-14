@@ -7,6 +7,7 @@ import { ScreenContainer } from '../../components/ScreenContainer';
 import { Header } from '../../components/Header';
 import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
+import { ProgressBar } from '../../components/ProgressBar';
 import { colors, typography, spacing, radius } from '../../theme';
 import { getPracticeItems, PracticeItem, practiceItemPool } from '../../data/practiceData';
 import { pegRhymes } from '../../data/pegData';
@@ -248,7 +249,7 @@ export const PracticeSessionScreen: React.FC = () => {
         onBack={phase === 'result' ? undefined : goBack}
       />
 
-      {/* PHASE 1: IMMERSIVE SPOT-BY-SPOT MEMORIZATION */}
+      {/* Phase 1: Spot-by-spot memorization */}
       {phase === 'memorize' && (
         <ScrollView
           showsVerticalScrollIndicator={false}
@@ -257,22 +258,19 @@ export const PracticeSessionScreen: React.FC = () => {
             { paddingBottom: 60 + Math.max(insets.bottom, 20) },
           ]}
         >
-          {/* Progress Bar */}
+          {/* Progress counter & bar */}
           <View style={styles.topProgress}>
             <Text style={styles.memorizeCounter}>
               ITEM {currentMemorizeIndex + 1} OF {items.length}
             </Text>
-            <View style={styles.progressBarTrack}>
-              <View
-                style={[
-                  styles.progressBarFill,
-                  { width: `${((currentMemorizeIndex + 1) / items.length) * 100}%` },
-                ]}
-              />
-            </View>
+            <ProgressBar
+              progress={(currentMemorizeIndex + 1) / items.length}
+              color={colors.palace}
+              height={6}
+            />
           </View>
 
-          {/* Immersive Memorization Card */}
+          {/* Memorization Card */}
           <Card style={styles.immersiveCard}>
             <Text style={styles.anchorSpotTag}>{anchor.spotTag}</Text>
             <Text style={styles.hugeEmoji}>{currentItem.emoji}</Text>
@@ -308,7 +306,7 @@ export const PracticeSessionScreen: React.FC = () => {
         </ScrollView>
       )}
 
-      {/* PHASE 2: MENTAL MODE (Put phone down and walk route) */}
+      {/* Phase 2: Mental mode walk */}
       {phase === 'mental_walk' && (
         <ScrollView
           showsVerticalScrollIndicator={false}
@@ -348,7 +346,7 @@ export const PracticeSessionScreen: React.FC = () => {
         </ScrollView>
       )}
 
-      {/* PHASE 3: RECALL CHALLENGE (Active retrieval) */}
+      {/* Phase 3: Active retrieval challenge */}
       {phase === 'recall' && (
         <ScrollView
           showsVerticalScrollIndicator={false}
@@ -428,7 +426,7 @@ export const PracticeSessionScreen: React.FC = () => {
         </ScrollView>
       )}
 
-      {/* PHASE 4: RESULTS */}
+      {/* Phase 4: Results */}
       {phase === 'result' && (
         <ScrollView
           showsVerticalScrollIndicator={false}
@@ -559,17 +557,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 1,
     marginBottom: 6,
-  },
-  progressBarTrack: {
-    height: 6,
-    backgroundColor: colors.surfaceMuted,
-    borderRadius: radius.pill,
-    overflow: 'hidden',
-  },
-  progressBarFill: {
-    height: '100%',
-    backgroundColor: colors.palace,
-    borderRadius: radius.pill,
   },
   immersiveCard: {
     padding: spacing.xl,

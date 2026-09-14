@@ -6,6 +6,7 @@ import { useNavigation } from '../../navigation/NavigationContext';
 import { ScreenContainer } from '../../components/ScreenContainer';
 import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
+import { Badge } from '../../components/Badge';
 import { colors, typography, spacing, radius } from '../../theme';
 import { CAPACITY_LEVELS, isCapacityLevelUnlocked } from '../../utils/capacity';
 
@@ -24,8 +25,7 @@ export const PracticeScreen: React.FC = () => {
   );
   const [recallMode, setRecallMode] = useState<'choice' | 'type'>('choice');
 
-  // Secondary techniques unlock rule:
-  // Unlocked after first palace workout is complete
+  // Secondary techniques unlock after first palace workout
   const areSecondaryUnlocked =
     profile.lifecycleState === 'FIRST_WORKOUT_COMPLETE' ||
     profile.lifecycleState === 'ACTIVE_USER' ||
@@ -52,23 +52,16 @@ export const PracticeScreen: React.FC = () => {
         { paddingBottom: Math.max(insets.bottom, 24) + 20 },
       ]}
     >
-      {/* ─────────────────────────────────────────────────────────────
-          1. HEADER
-         ───────────────────────────────────────────────────────────── */}
+      {/* 1. Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Train</Text>
         <Text style={styles.headerSubtitle}>Your cognitive memory library</Text>
       </View>
 
-      {/* ─────────────────────────────────────────────────────────────
-          2. PRIMARY HERO: MEMORY PALACE GYM
-         ───────────────────────────────────────────────────────────── */}
+      {/* 2. Primary Hero: Memory Palace Gym */}
       <Card variant="elevated" style={styles.gymHeroCard}>
         <View style={styles.gymHeaderRow}>
-          <View style={styles.gymBadge}>
-            <MaterialCommunityIcons name="castle" size={16} color={colors.palace} />
-            <Text style={styles.gymBadgeText}>MEMORY PALACE GYM</Text>
-          </View>
+          <Badge label="MEMORY PALACE GYM" variant="palace" iconName="castle" size="small" />
         </View>
 
         <Text style={styles.gymTitle}>Build your capacity with spatial memory</Text>
@@ -218,9 +211,7 @@ export const PracticeScreen: React.FC = () => {
         </View>
       </Card>
 
-      {/* ─────────────────────────────────────────────────────────────
-          3. CUSTOM PALACES CARD
-         ───────────────────────────────────────────────────────────── */}
+      {/* 3. Custom Palaces Card */}
       <Card variant="tinted" tintColor={colors.palaceLight} style={styles.customPalaceCard}>
         <View style={styles.customHeaderRow}>
           <MaterialCommunityIcons name="home-plus" size={22} color={colors.palace} />
@@ -238,9 +229,7 @@ export const PracticeScreen: React.FC = () => {
         />
       </Card>
 
-      {/* ─────────────────────────────────────────────────────────────
-          4. OTHER TECHNIQUES (Secondary Section)
-         ───────────────────────────────────────────────────────────── */}
+      {/* 4. Other Techniques (Secondary Section) */}
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Other Techniques</Text>
       </View>
@@ -366,21 +355,6 @@ const styles = StyleSheet.create({
   gymHeaderRow: {
     flexDirection: 'row',
     marginBottom: spacing.s,
-  },
-  gymBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.palaceLight,
-    paddingHorizontal: spacing.s,
-    paddingVertical: 4,
-    borderRadius: radius.pill,
-    gap: 6,
-  },
-  gymBadgeText: {
-    ...typography.caption,
-    fontWeight: '800',
-    color: colors.palace,
-    letterSpacing: 0.8,
   },
   gymTitle: {
     ...typography.headingL,
