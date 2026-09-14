@@ -110,6 +110,7 @@ export const OnboardingScreen: React.FC = () => {
     switchTab,
     recordPracticeAttempt,
     saveRetentionMemory,
+    updatePalaces,
     palaces,
   } = useNavigation();
 
@@ -260,10 +261,28 @@ export const OnboardingScreen: React.FC = () => {
 
       // 2. Schedule Day 1 retention review for tomorrow
       const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+      const defaultPalaceId = palaces[0]?.id || 'palace_home_default';
+
+      // Update default palace to match the 4 spots the user learned in onboarding
+      const updatedPalace = {
+        id: defaultPalaceId,
+        name: 'My Cozy Home',
+        type: 'home' as const,
+        iconName: 'home-outline' as const,
+        createdAt: palaces[0]?.createdAt || new Date().toISOString(),
+        spots: FIRST_PALACE_SPOTS.map((s) => ({
+          id: s.id,
+          order: s.order,
+          name: s.name,
+          iconName: s.icon as any,
+        })),
+      };
+      await updatePalaces([updatedPalace, ...palaces.slice(1)]);
+
       await saveRetentionMemory({
         id: `retention_first_${Date.now()}`,
-        palaceId: palaces[0]?.id || 'palace_home_default',
-        palaceName: palaces[0]?.name || 'My Home Palace',
+        palaceId: defaultPalaceId,
+        palaceName: 'My Cozy Home',
         encodedDate: new Date().toISOString(),
         items: FIRST_PALACE_ITEMS.map((item) => ({
           spotIndex: item.spotIndex,
@@ -426,12 +445,14 @@ export const OnboardingScreen: React.FC = () => {
           </Text>
 
           <Card variant="tinted" tintColor={colors.surfaceMuted} style={styles.trainingEffectCard}>
-            <Text style={styles.trainingEffectHeader}>The Training Difference</Text>
+            <Text style={styles.trainingEffectHeader}>Raw Starting Point</Text>
             <Text style={styles.trainingEffectBody}>
-              This isn't a grade. It is your raw baseline.
+              This is your raw starting point—not a grade.
             </Text>
             <Text style={[styles.trainingEffectBody, { marginTop: spacing.s }]}>
-              Your brain struggles to hold abstract lists, but it remembers physical places effortlessly.
+              {baselineResult.recalled === 8
+                ? "You already have a strong raw starting point. Let's see what a Memory Palace can add."
+                : "Now let's give your memory a structure with physical places."}
             </Text>
             <Text
               style={[
@@ -597,21 +618,21 @@ export const OnboardingScreen: React.FC = () => {
 
           <Text style={styles.title}>
             {getActualPalaceRecallScore() === 4
-              ? 'You recalled all 4 items! 🎉'
-              : `You recalled ${getActualPalaceRecallScore()} of 4 items! 🧠`}
+              ? '4 / 4 remembered'
+              : `${getActualPalaceRecallScore()} / 4 remembered`}
           </Text>
           <Text style={styles.description}>
-            That is the power of the Memory Palace.
+            You placed each item in a location—and found it again.
           </Text>
 
           {/* The Aha Comparison */}
           <Card variant="tinted" tintColor={colors.palaceLight} style={styles.ahaCard}>
-            <Text style={styles.ahaHeader}>The "Aha" Difference</Text>
+            <Text style={styles.ahaHeader}>You used a place instead of a list</Text>
             <Text style={styles.ahaBody}>
-              In the baseline test, you tried to hold an abstract list in your head.
+              You walked to each location and found what you placed there.
             </Text>
-            <Text style={[styles.ahaBody, { marginTop: spacing.s }]}>
-              Here, you didn't memorize words. You simply walked through your home and found each item right where you left it.
+            <Text style={[styles.ahaBody, { marginTop: spacing.s, fontWeight: '600', color: colors.textPrimary }]}>
+              Tomorrow, we'll test what survived.
             </Text>
           </Card>
 
@@ -622,10 +643,10 @@ export const OnboardingScreen: React.FC = () => {
               <Text style={styles.retentionTitle}>Tomorrow's Check-in</Text>
             </View>
             <Text style={styles.retentionBody}>
-              Remembering today is easy. Will you still remember them tomorrow?
+              Remembering today is just encoding. The real experiment is durability.
             </Text>
             <Text style={[styles.retentionBody, { marginTop: spacing.s, fontWeight: '600', color: colors.textPrimary }]}>
-              We've enrolled your palace for a 1-day retention check-in.
+              We've enrolled My Cozy Home for your Day 1 retention check-in.
             </Text>
           </Card>
 

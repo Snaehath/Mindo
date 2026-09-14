@@ -208,7 +208,9 @@ export const HomeScreen: React.FC = () => {
 
         <Text style={styles.metricFooterNote}>
           {overallStrength !== null
-            ? 'Based on verified immediate recall & delayed retention'
+            ? (retentionMemories || []).some((m) => m.reviews && m.reviews.length > 0)
+              ? 'Based on verified recall & retention'
+              : 'Based on verified recall & training capacity'
             : 'Complete your first practice drill to calibrate'}
         </Text>
       </Card>

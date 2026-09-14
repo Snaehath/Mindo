@@ -42,7 +42,7 @@ export const ProgressScreen: React.FC = () => {
     } else if (diff === 0) {
       comparisonText = 'Matching your raw baseline capacity';
     } else {
-      comparisonText = 'Training toward your baseline';
+      comparisonText = 'Building from your baseline';
     }
   }
 

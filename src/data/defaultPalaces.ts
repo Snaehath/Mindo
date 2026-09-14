@@ -8,11 +8,10 @@ export const defaultPalaces: UserPalace[] = [
     iconName: 'home-outline',
     createdAt: '2026-01-01T00:00:00.000Z',
     spots: [
-      { id: 'spot_1', order: 1, name: 'Front Porch & Door', iconName: 'door-closed' },
-      { id: 'spot_2', order: 2, name: 'Comfy Living Room Sofa', iconName: 'chair-rolling' },
-      { id: 'spot_3', order: 3, name: 'Big Screen TV', iconName: 'television' },
-      { id: 'spot_4', order: 4, name: 'Kitchen Dining Table', iconName: 'silverware-fork-knife' },
-      { id: 'spot_5', order: 5, name: 'Master Bed', iconName: 'bed' },
+      { id: 'spot_1', order: 1, name: 'Front Door', iconName: 'door-closed' },
+      { id: 'spot_2', order: 2, name: 'Living Room Sofa', iconName: 'chair-rolling' },
+      { id: 'spot_3', order: 3, name: 'Dining Table', iconName: 'silverware-fork-knife' },
+      { id: 'spot_4', order: 4, name: 'Bedroom Bed', iconName: 'bed' },
     ],
   },
   {

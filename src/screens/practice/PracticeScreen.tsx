@@ -23,7 +23,11 @@ export const PracticeScreen: React.FC = () => {
   const [selectedPalaceId, setSelectedPalaceId] = useState<string>(
     palaces[0]?.id || 'palace_home_default'
   );
+  const [palaceDropdownOpen, setPalaceDropdownOpen] = useState(false);
   const [recallMode, setRecallMode] = useState<'choice' | 'type'>('choice');
+
+  const selectedPalace =
+    palaces.find((p) => p.id === selectedPalaceId) || palaces[0];
 
   // Secondary techniques unlock after first palace workout
   const areSecondaryUnlocked =
@@ -131,38 +135,65 @@ export const PracticeScreen: React.FC = () => {
 
         {/* Palace Location Selector */}
         <Text style={styles.fieldLabel}>Palace Location</Text>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.palaceScroll}
+        <TouchableOpacity
+          onPress={() => setPalaceDropdownOpen(!palaceDropdownOpen)}
+          activeOpacity={0.7}
+          style={styles.palaceDropdownBtn}
         >
-          {palaces.map((p) => {
-            const isChosen = selectedPalaceId === p.id;
-            return (
-              <TouchableOpacity
-                key={p.id}
-                onPress={() => setSelectedPalaceId(p.id)}
-                activeOpacity={0.7}
-                style={[styles.palaceChip, isChosen && styles.palaceChipActive]}
-              >
-                <MaterialCommunityIcons
-                  name="castle"
-                  size={16}
-                  color={isChosen ? colors.palace : colors.textSecondary}
-                  style={{ marginRight: 6 }}
-                />
-                <Text
-                  style={[
-                    styles.palaceChipText,
-                    isChosen && styles.palaceChipTextActive,
-                  ]}
+          <View style={styles.palaceDropdownContent}>
+            <MaterialCommunityIcons
+              name="castle"
+              size={18}
+              color={colors.palace}
+              style={{ marginRight: spacing.s }}
+            />
+            <Text style={styles.palaceDropdownText} numberOfLines={1}>
+              {selectedPalace?.name || 'Select Palace'}
+            </Text>
+          </View>
+          <MaterialCommunityIcons
+            name={palaceDropdownOpen ? 'chevron-up' : 'chevron-down'}
+            size={20}
+            color={colors.textSecondary}
+          />
+        </TouchableOpacity>
+
+        {palaceDropdownOpen && (
+          <View style={styles.palaceDropdownMenu}>
+            {palaces.map((p) => {
+              const isChosen = selectedPalaceId === p.id;
+              return (
+                <TouchableOpacity
+                  key={p.id}
+                  style={[styles.palaceDropdownItem, isChosen && styles.palaceDropdownItemActive]}
+                  onPress={() => {
+                    setSelectedPalaceId(p.id);
+                    setPalaceDropdownOpen(false);
+                  }}
+                  activeOpacity={0.7}
                 >
-                  {p.name}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
+                  <View style={styles.palaceDropdownItemLeft}>
+                    <Text
+                      style={[
+                        styles.palaceDropdownItemText,
+                        isChosen && styles.palaceDropdownItemTextActive,
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {p.name}
+                    </Text>
+                    <Text style={styles.palaceDropdownItemMeta}>
+                      {p.spots.length} stations
+                    </Text>
+                  </View>
+                  {isChosen && (
+                    <MaterialCommunityIcons name="check" size={18} color={colors.palace} />
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        )}
 
         {/* Mode Selector (Options vs Type Pro) */}
         <Text style={styles.fieldLabel}>Recall Mode</Text>
@@ -419,34 +450,67 @@ const styles = StyleSheet.create({
     marginBottom: spacing.l,
   },
 
-  // Palace Selector
-  palaceScroll: {
-    flexDirection: 'row',
-    gap: spacing.s,
-    paddingBottom: spacing.l,
-  },
-  palaceChip: {
+  // Palace Dropdown Selector
+  palaceDropdownBtn: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     backgroundColor: colors.surfaceMuted,
     paddingHorizontal: spacing.m,
-    paddingVertical: spacing.s,
-    borderRadius: radius.pill,
+    paddingVertical: spacing.m,
+    borderRadius: radius.l,
     borderWidth: 1.5,
-    borderColor: 'transparent',
+    borderColor: colors.border,
+    marginBottom: spacing.l,
   },
-  palaceChipActive: {
-    backgroundColor: colors.palaceLight,
-    borderColor: colors.palace,
+  palaceDropdownContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: spacing.s,
   },
-  palaceChipText: {
+  palaceDropdownText: {
     ...typography.bodyM,
-    color: colors.textSecondary,
-    fontWeight: '600',
+    fontWeight: '700',
+    color: colors.textPrimary,
   },
-  palaceChipTextActive: {
+  palaceDropdownMenu: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.l,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginTop: -spacing.m,
+    marginBottom: spacing.l,
+    overflow: 'hidden',
+  },
+  palaceDropdownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.m,
+    paddingVertical: spacing.m,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  palaceDropdownItemActive: {
+    backgroundColor: colors.palaceLight,
+  },
+  palaceDropdownItemLeft: {
+    flex: 1,
+  },
+  palaceDropdownItemText: {
+    ...typography.bodyM,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
+  palaceDropdownItemTextActive: {
     color: colors.palace,
     fontWeight: '700',
+  },
+  palaceDropdownItemMeta: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    marginTop: 2,
   },
 
   // Mode Selector

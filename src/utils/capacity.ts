@@ -19,17 +19,17 @@ export function isCapacityLevelUnlocked(
   level: number,
   practiceHistory: PracticeAttempt[] = []
 ): boolean {
-  if (level === 1) return true;
+  if (level <= 1) return true;
   const palaceAttempts = practiceHistory.filter((p) => p.techniqueId === 'palace');
 
   if (level === 2) {
-    return palaceAttempts.some((p) => p.level === 1 && p.accuracy >= 80);
+    return palaceAttempts.some((p) => p.totalItems >= 5 && p.accuracy >= 80);
   }
   if (level === 3) {
-    return palaceAttempts.some((p) => p.level === 2 && p.accuracy >= 80);
+    return palaceAttempts.some((p) => p.totalItems >= 10 && p.accuracy >= 80);
   }
   if (level === 4) {
-    return palaceAttempts.some((p) => p.level === 3 && p.accuracy >= 80);
+    return palaceAttempts.some((p) => p.totalItems >= 15 && p.accuracy >= 80);
   }
   return false;
 }
