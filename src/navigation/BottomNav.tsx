@@ -13,7 +13,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onSelectTab }) 
   const insets = useSafeAreaInsets();
 
   const tabs: Array<{
-    id: 'home' | 'learn' | 'practice' | 'progress';
+    id: 'home' | 'practice' | 'progress';
     label: string;
     iconActive: keyof typeof MaterialCommunityIcons.glyphMap;
     iconInactive: keyof typeof MaterialCommunityIcons.glyphMap;
@@ -25,14 +25,8 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onSelectTab }) 
       iconInactive: 'home-outline',
     },
     {
-      id: 'learn',
-      label: 'Learn',
-      iconActive: 'book-open-page-variant',
-      iconInactive: 'book-open-page-variant-outline',
-    },
-    {
       id: 'practice',
-      label: 'Practice',
+      label: 'Train',
       iconActive: 'dumbbell',
       iconInactive: 'dumbbell',
     },

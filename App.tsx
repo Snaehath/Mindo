@@ -36,13 +36,12 @@ const RootContent: React.FC = () => {
       case 'home':
         return <HomeScreen />;
       case 'learn':
-        return <LearnScreen />;
+      case 'practice':
+        return <PracticeScreen />;
       case 'techniqueDetail':
         return <TechniqueLessonScreen />;
       case 'palaceBuilder':
         return <PalaceBuilderScreen />;
-      case 'practice':
-        return <PracticeScreen />;
       case 'practiceSession':
         return <PracticeSessionScreen />;
       case 'delayedRecall':

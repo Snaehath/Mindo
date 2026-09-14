@@ -43,7 +43,9 @@ export const PracticeSessionScreen: React.FC = () => {
   // Recall answers state: map question index to user answer word
   const [userAnswers, setUserAnswers] = useState<Record<number, string>>({});
   const [currentRecallQuestionIdx, setCurrentRecallQuestionIdx] = useState(0);
-  const [recallMode, setRecallMode] = useState<'type' | 'choice'>('choice');
+  const [recallMode, setRecallMode] = useState<'type' | 'choice'>(
+    params?.recallMode === 'type' ? 'type' : 'choice'
+  );
   const [typedInput, setTypedInput] = useState('');
 
   // Final score result
