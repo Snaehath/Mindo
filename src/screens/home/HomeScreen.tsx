@@ -7,120 +7,181 @@ import { ScreenContainer } from '../../components/ScreenContainer';
 import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
 import { colors, typography, spacing, radius } from '../../theme';
-import { techniqueModules } from '../../data/lessonsData';
 import { calculateRecallStrength } from '../../utils/metrics';
-import { TechniqueType } from '../../types';
+import { ActiveRetentionMemory, UserPalace } from '../../types';
 
 export const HomeScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
   const {
-    techniqueProgress,
     navigate,
     activeRetentionMemory,
     practiceHistory,
     retentionMemories,
+    palaces,
+    profile,
   } = useNavigation();
 
   const getGreeting = (): string => {
     const hour = new Date().getHours();
-    if (hour < 12) return 'Good morning 👋';
-    if (hour < 18) return 'Good afternoon 👋';
-    return 'Good evening 👋';
+    if (hour < 12) return 'Good morning';
+    if (hour < 18) return 'Good afternoon';
+    return 'Good evening';
   };
 
-  // Grounded Recall Strength calculation
+  // 1. Recall Strength Calculation (Grounded & Honest)
   const recallMetrics = calculateRecallStrength(practiceHistory, retentionMemories);
   const overallStrength = recallMetrics.overallStrength;
 
-  // Genuine accuracy for individual techniques based on verified attempts
-  const getTechniqueStrength = (techId: TechniqueType): number | null => {
-    const attempts = (practiceHistory || []).filter((h) => h.techniqueId === techId);
-    if (attempts.length === 0) return null;
-    const recent = attempts.slice(0, 5);
-    return Math.round(
-      recent.reduce((sum, a) => sum + (a.accuracy || 0), 0) / recent.length
-    );
+  // 2. Retention Priority & Needs Attention Logic
+  const now = Date.now();
+  const activeMemories = (retentionMemories || []).filter((m) => m.status === 'active');
+
+  // Due memories (either scheduled time has passed, or has 0 reviews completed)
+  const dueMemories = activeMemories.filter(
+    (m) => now >= new Date(m.nextReviewDate).getTime() || m.reviews.length === 0
+  );
+
+  const primaryDueMemory: ActiveRetentionMemory | undefined =
+    dueMemories[0] || (activeRetentionMemory && dueMemories.includes(activeRetentionMemory) ? activeRetentionMemory : undefined);
+
+  // Overdue memories (>24 hours past scheduled review date)
+  const overdueMemories = activeMemories.filter(
+    (m) => now - new Date(m.nextReviewDate).getTime() > 24 * 60 * 60 * 1000
+  );
+
+  // Needs Attention appears if an overdue memory exists (different from primary hero if possible)
+  const needsAttentionMemory: ActiveRetentionMemory | undefined =
+    overdueMemories.find((m) => m.id !== primaryDueMemory?.id) ||
+    (dueMemories.length > 1 ? dueMemories[1] : undefined);
+
+  // 3. Current Capacity Level Calculation
+  const level1Passes = (practiceHistory || []).filter((h) => h.level === 1 && h.accuracy >= 80);
+  const level2Passes = (practiceHistory || []).filter((h) => h.level === 2 && h.accuracy >= 80);
+  const level3Passes = (practiceHistory || []).filter((h) => h.level === 3 && h.accuracy >= 80);
+
+  let workoutLevel = 1;
+  let workoutItemCount = 5;
+  if (level3Passes.length > 0) {
+    workoutLevel = 4;
+    workoutItemCount = 20;
+  } else if (level2Passes.length > 0) {
+    workoutLevel = 3;
+    workoutItemCount = 15;
+  } else if (level1Passes.length > 0) {
+    workoutLevel = 2;
+    workoutItemCount = 10;
+  }
+
+  const defaultPalace: UserPalace | undefined = palaces[0];
+
+  const getRetentionStatusLabel = (memory: ActiveRetentionMemory): string => {
+    const reviewTime = new Date(memory.nextReviewDate).getTime();
+    const diffHours = Math.round((reviewTime - now) / (1000 * 3600));
+    if (diffHours <= 0) return 'Due for recall';
+    if (diffHours < 24) return 'Next: Tomorrow';
+    const days = Math.round(diffHours / 24);
+    return `Next: in ${days} days`;
   };
 
-  const getSkillStage = (strength: number | null): string => {
-    if (strength === null) return 'New';
-    if (strength < 50) return 'Learning';
-    if (strength < 75) return 'Building';
-    if (strength < 90) return 'Skilled';
-    return 'Strong';
+  const getPalaceActiveMemory = (palaceId: string) => {
+    return activeMemories.find((m) => m.palaceId === palaceId);
   };
-
-  const palaceStrength = getTechniqueStrength('palace');
-  const linkingStrength = getTechniqueStrength('linking');
-  const pegStrength = getTechniqueStrength('peg');
-
-  // Check if any retention memories need attention / refresh
-  const isRetentionDue =
-    activeRetentionMemory &&
-    (new Date().getTime() >= new Date(activeRetentionMemory.nextReviewDate).getTime() ||
-      activeRetentionMemory.reviews.length === 0);
-
-  // Determine Today's Training recommendation
-  const getTodayTraining = () => {
-    const palaceSteps = techniqueProgress.palace.completedSteps;
-    const linkingSteps = techniqueProgress.linking.completedSteps;
-    const pegSteps = techniqueProgress.peg.completedSteps;
-
-    if (palaceSteps < 6) {
-      return {
-        title: 'Memory Palace',
-        subtitle: 'Learn familiar spots & bizarre imagery.',
-        action: () => navigate('techniqueDetail', { techniqueId: 'palace' }),
-      };
-    }
-    if (linkingSteps < 6) {
-      return {
-        title: 'Linking / Story',
-        subtitle: 'Chain bizarre cause-and-effects.',
-        action: () => navigate('techniqueDetail', { techniqueId: 'linking' }),
-      };
-    }
-    if (pegSteps < 6) {
-      return {
-        title: 'Peg System',
-        subtitle: 'Learn number rhyme pegs for instant recall.',
-        action: () => navigate('techniqueDetail', { techniqueId: 'peg' }),
-      };
-    }
-
-    return {
-      title: 'Memory Palace Drill',
-      subtitle: '10 items · ~3 min',
-      action: () => navigate('practiceSession', { techniqueId: 'palace', level: 2 }),
-    };
-  };
-
-  const todayTraining = getTodayTraining();
 
   return (
     <ScreenContainer
-      scrollable={false}
+      scrollable
       contentContainerStyle={[
         styles.container,
-        { paddingBottom: Math.max(insets.bottom, 16) + 12 },
+        { paddingBottom: Math.max(insets.bottom, 24) + 20 },
       ]}
     >
-      {/* 1. Header: Greeting & Quiet Mindo Branding */}
+      {/* ─────────────────────────────────────────────────────────────
+          1. HEADER: QUIET GREETING & APP IDENTITY
+         ───────────────────────────────────────────────────────────── */}
       <View style={styles.header}>
         <View>
           <Text style={styles.greeting}>{getGreeting()}</Text>
-          <Text style={styles.mainTitle}>Your Memory</Text>
+          <Text style={styles.brandTitle}>MINDO</Text>
         </View>
         <View style={styles.brandBadge}>
           <MaterialCommunityIcons name="brain" size={16} color={colors.palace} />
-          <Text style={styles.brandBadgeText}>Mindo</Text>
+          <Text style={styles.brandBadgeText}>
+            {overallStrength !== null ? `${overallStrength}%` : 'Calibrating'}
+          </Text>
         </View>
       </View>
 
-      {/* 2. Core Card: Recall Strength Battery & Direct Action */}
-      <Card variant="tinted" tintColor={colors.palaceLight} style={styles.batteryHeroCard}>
-        <View style={styles.batteryHeaderRow}>
-          <Text style={styles.batteryHeaderLabel}>RECALL STRENGTH</Text>
+      {/* ─────────────────────────────────────────────────────────────
+          2. PRIMARY ACTION HERO (Visual Centerpiece - Action First)
+         ───────────────────────────────────────────────────────────── */}
+      {primaryDueMemory ? (
+        // STATE: RETENTION DUE (Highest Priority)
+        <Card variant="elevated" style={styles.heroActionCardDue}>
+          <View style={styles.heroHeaderRow}>
+            <View style={styles.heroDueTagBadge}>
+              <MaterialCommunityIcons name="bell-ring" size={14} color={colors.palace} />
+              <Text style={styles.heroDueTagText}>RETENTION CHECK-IN DUE</Text>
+            </View>
+          </View>
+
+          <Text style={styles.heroTitle}>
+            {primaryDueMemory.palaceName}
+          </Text>
+          <Text style={styles.heroSubtitle}>
+            {primaryDueMemory.items.length} items · {primaryDueMemory.currentIntervalDay}-day retention check
+          </Text>
+
+          <View style={styles.heroActionBlock}>
+            <Button
+              label="Test Recall Now →"
+              onPress={() => navigate('delayedRecall', { memoryId: primaryDueMemory.id })}
+              variant="palace"
+              size="large"
+            />
+          </View>
+        </Card>
+      ) : (
+        // STATE: NO RETENTION DUE -> TODAY'S WORKOUT
+        <Card variant="elevated" style={styles.heroActionCardWorkout}>
+          <View style={styles.heroHeaderRow}>
+            <View style={styles.heroWorkoutTagBadge}>
+              <MaterialCommunityIcons name="dumbbell" size={14} color={colors.palace} />
+              <Text style={styles.heroWorkoutTagText}>TODAY'S WORKOUT</Text>
+            </View>
+            <Text style={styles.heroCapacityPill}>{workoutItemCount} items</Text>
+          </View>
+
+          <Text style={styles.heroTitle}>
+            {defaultPalace?.name || 'Memory Palace Drill'}
+          </Text>
+          <Text style={styles.heroSubtitle}>
+            {workoutItemCount} spots · ~2 minutes of spatial encoding & recall
+          </Text>
+
+          <View style={styles.heroActionBlock}>
+            <Button
+              label="Start Workout →"
+              onPress={() =>
+                navigate('practiceSession', {
+                  techniqueId: 'palace',
+                  level: workoutLevel,
+                  itemCount: workoutItemCount,
+                  palaceId: defaultPalace?.id,
+                })
+              }
+              variant="palace"
+              size="large"
+            />
+          </View>
+        </Card>
+      )}
+
+      {/* ─────────────────────────────────────────────────────────────
+          3. RECALL STRENGTH CARD (Calm Metric, Secondary to Action)
+         ───────────────────────────────────────────────────────────── */}
+      <Card variant="tinted" tintColor={colors.palaceLight} style={styles.metricCard}>
+        <View style={styles.metricHeaderRow}>
+          <Text style={styles.metricHeaderLabel}>RECALL STRENGTH</Text>
           <MaterialCommunityIcons
             name={
               overallStrength === null
@@ -131,168 +192,132 @@ export const HomeScreen: React.FC = () => {
                 ? 'battery-medium'
                 : 'battery-low'
             }
-            size={22}
+            size={20}
             color={overallStrength === null ? colors.textMuted : colors.palace}
           />
         </View>
 
-        <View style={styles.strengthScoreRow}>
+        <View style={styles.metricScoreRow}>
           <Text
             style={[
-              styles.strengthNumber,
-              overallStrength === null && { fontSize: 24, fontWeight: '700' },
+              styles.metricScoreNumber,
+              overallStrength === null && styles.metricScoreUnmeasured,
             ]}
           >
-            {overallStrength !== null ? `${overallStrength}%` : 'Not measured yet'}
+            {overallStrength !== null ? `${overallStrength} / 100` : 'Not measured yet'}
           </Text>
-          <Text style={styles.strengthStatusTag}>
-            {overallStrength !== null
-              ? overallStrength >= 80
-                ? 'Looking strong'
-                : 'Building consistency'
-              : 'Complete a workout'}
+          <Text style={styles.metricStatusTag}>
+            {overallStrength !== null ? recallMetrics.stageLabel : 'Complete a drill'}
           </Text>
         </View>
 
-        {/* Tactile Battery Bar */}
-        <View style={styles.batteryTrack}>
+        {/* Tactile Gauge Bar */}
+        <View style={styles.gaugeTrack}>
           <View
             style={[
-              styles.batteryFill,
+              styles.gaugeFill,
               { width: overallStrength !== null ? `${overallStrength}%` : '0%' },
             ]}
           />
         </View>
 
-        {/* Coach Context & One Obvious Next Action */}
-        {isRetentionDue && activeRetentionMemory ? (
-          <View style={styles.actionBlock}>
-            <Text style={styles.coachText}>
-              {activeRetentionMemory.items.length} items could use a quick refresh.
-            </Text>
-            <Button
-              label={`Strengthen Palace (${activeRetentionMemory.items.length} items) →`}
-              onPress={() => navigate('delayedRecall', { memoryId: activeRetentionMemory.id })}
-              variant="palace"
-              size="normal"
-            />
-          </View>
-        ) : (
-          <View style={styles.actionBlock}>
-            <Text style={styles.coachText}>
-              {overallStrength === null
-                ? 'Ready for your first memory workout?'
-                : 'Your recall is holding well. Ready for today\'s drill?'}
-            </Text>
-            <Button
-              label={`Start: ${todayTraining.title} →`}
-              onPress={todayTraining.action}
-              variant="palace"
-              size="normal"
-            />
-          </View>
-        )}
+        <Text style={styles.metricFooterNote}>
+          {overallStrength !== null
+            ? 'Based on verified immediate recall & delayed retention'
+            : 'Complete your first practice drill to calibrate'}
+        </Text>
       </Card>
 
-      {/* 3. Your Skills: 3 Compact Capability Rows */}
-      <View style={styles.skillsSection}>
-        <Text style={styles.sectionHeaderTitle}>Your Skills</Text>
+      {/* ─────────────────────────────────────────────────────────────
+          4. NEEDS ATTENTION CARD (Conditional - Fading / Overdue)
+         ───────────────────────────────────────────────────────────── */}
+      {needsAttentionMemory && (
+        <Card variant="tinted" tintColor={colors.surfaceMuted} style={styles.attentionCard}>
+          <View style={styles.attentionHeaderRow}>
+            <MaterialCommunityIcons name="clock-alert-outline" size={20} color={colors.palace} />
+            <Text style={styles.attentionHeaderTitle}>NEEDS ATTENTION</Text>
+          </View>
 
-        <Card style={styles.skillsCard}>
-          {/* Memory Palace */}
+          <Text style={styles.attentionTitle}>{needsAttentionMemory.palaceName}</Text>
+          <Text style={styles.attentionBody}>
+            {needsAttentionMemory.items.length} items may be fading · Overdue for review
+          </Text>
+
           <TouchableOpacity
-            style={styles.skillRow}
-            onPress={() => navigate('techniqueDetail', { techniqueId: 'palace' })}
+            style={styles.attentionActionBtn}
+            onPress={() => navigate('delayedRecall', { memoryId: needsAttentionMemory.id })}
             activeOpacity={0.7}
           >
-            <View style={styles.skillIconBox}>
-              <MaterialCommunityIcons name="castle" size={20} color={colors.palace} />
-            </View>
-            <View style={styles.skillInfo}>
-              <View style={styles.skillTitleRow}>
-                <Text style={styles.skillName}>Memory Palace</Text>
-                <Text style={[styles.skillPercent, { color: colors.palace }]}>
-                  {palaceStrength !== null ? `${palaceStrength}%` : '—'} · {getSkillStage(palaceStrength)}
-                </Text>
-              </View>
-              <View style={styles.miniTrack}>
-                <View
-                  style={[
-                    styles.miniFill,
-                    {
-                      width: palaceStrength !== null ? `${palaceStrength}%` : '0%',
-                      backgroundColor: colors.palace,
-                    },
-                  ]}
-                />
-              </View>
-            </View>
-          </TouchableOpacity>
-
-          <View style={styles.skillDivider} />
-
-          {/* Linking */}
-          <TouchableOpacity
-            style={styles.skillRow}
-            onPress={() => navigate('techniqueDetail', { techniqueId: 'linking' })}
-            activeOpacity={0.7}
-          >
-            <View style={[styles.skillIconBox, { backgroundColor: colors.linkingLight }]}>
-              <MaterialCommunityIcons name="link-variant" size={20} color={colors.linking} />
-            </View>
-            <View style={styles.skillInfo}>
-              <View style={styles.skillTitleRow}>
-                <Text style={styles.skillName}>Story Linking</Text>
-                <Text style={[styles.skillPercent, { color: colors.linking }]}>
-                  {linkingStrength !== null ? `${linkingStrength}%` : '—'} · {getSkillStage(linkingStrength)}
-                </Text>
-              </View>
-              <View style={styles.miniTrack}>
-                <View
-                  style={[
-                    styles.miniFill,
-                    {
-                      width: linkingStrength !== null ? `${linkingStrength}%` : '0%',
-                      backgroundColor: colors.linking,
-                    },
-                  ]}
-                />
-              </View>
-            </View>
-          </TouchableOpacity>
-
-          <View style={styles.skillDivider} />
-
-          {/* Peg System */}
-          <TouchableOpacity
-            style={styles.skillRow}
-            onPress={() => navigate('techniqueDetail', { techniqueId: 'peg' })}
-            activeOpacity={0.7}
-          >
-            <View style={[styles.skillIconBox, { backgroundColor: colors.pegLight }]}>
-              <MaterialCommunityIcons name="format-list-numbered" size={20} color={colors.peg} />
-            </View>
-            <View style={styles.skillInfo}>
-              <View style={styles.skillTitleRow}>
-                <Text style={styles.skillName}>Peg System</Text>
-                <Text style={[styles.skillPercent, { color: colors.peg }]}>
-                  {pegStrength !== null ? `${pegStrength}%` : '—'} · {getSkillStage(pegStrength)}
-                </Text>
-              </View>
-              <View style={styles.miniTrack}>
-                <View
-                  style={[
-                    styles.miniFill,
-                    {
-                      width: pegStrength !== null ? `${pegStrength}%` : '0%',
-                      backgroundColor: colors.peg,
-                    },
-                  ]}
-                />
-              </View>
-            </View>
+            <Text style={styles.attentionActionText}>Review Now →</Text>
           </TouchableOpacity>
         </Card>
+      )}
+
+      {/* ─────────────────────────────────────────────────────────────
+          5. ACTIVE PALACES SECTION (Clean Loci Snapshot)
+         ───────────────────────────────────────────────────────────── */}
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>Active Palaces</Text>
+        <TouchableOpacity
+          onPress={() => navigate('palaceBuilder')}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.sectionActionText}>+ New</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.palacesList}>
+        {palaces.map((palace) => {
+          const activeMemory = getPalaceActiveMemory(palace.id);
+          const statusText = activeMemory
+            ? getRetentionStatusLabel(activeMemory)
+            : 'Ready for workout';
+          const isDue = activeMemory && (now >= new Date(activeMemory.nextReviewDate).getTime() || activeMemory.reviews.length === 0);
+
+          return (
+            <TouchableOpacity
+              key={palace.id}
+              style={styles.palaceRow}
+              onPress={() => {
+                if (activeMemory && isDue) {
+                  navigate('delayedRecall', { memoryId: activeMemory.id });
+                } else {
+                  navigate('practiceSession', {
+                    techniqueId: 'palace',
+                    level: workoutLevel,
+                    itemCount: workoutItemCount,
+                    palaceId: palace.id,
+                  });
+                }
+              }}
+              activeOpacity={0.7}
+            >
+              <View style={styles.palaceIconCircle}>
+                <MaterialCommunityIcons
+                  name="castle"
+                  size={20}
+                  color={colors.palace}
+                />
+              </View>
+
+              <View style={styles.palaceInfo}>
+                <Text style={styles.palaceName}>{palace.name}</Text>
+                <Text style={styles.palaceMeta}>
+                  {palace.spots.length} stations ·{' '}
+                  <Text style={[styles.palaceStatus, isDue && styles.palaceStatusDue]}>
+                    {statusText}
+                  </Text>
+                </Text>
+              </View>
+
+              <MaterialCommunityIcons
+                name="chevron-right"
+                size={20}
+                color={colors.textMuted}
+              />
+            </TouchableOpacity>
+          );
+        })}
       </View>
     </ScreenContainer>
   );
@@ -300,156 +325,271 @@ export const HomeScreen: React.FC = () => {
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    paddingHorizontal: spacing.l,
-    paddingTop: spacing.m,
-    justifyContent: 'space-between',
+    paddingTop: spacing.l,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing.s,
+    marginBottom: spacing.l,
   },
   greeting: {
-    ...typography.caption,
+    ...typography.bodyM,
     color: colors.textSecondary,
-    fontWeight: '600',
-    marginBottom: 2,
+    fontWeight: '500',
   },
-  mainTitle: {
-    ...typography.headingXL,
-    fontSize: 26,
+  brandTitle: {
+    ...typography.headingL,
+    fontSize: 24,
     color: colors.textPrimary,
+    letterSpacing: 0.5,
   },
   brandBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
     backgroundColor: colors.palaceLight,
-    paddingVertical: 5,
     paddingHorizontal: spacing.m,
+    paddingVertical: 6,
     borderRadius: radius.pill,
+    gap: 4,
   },
   brandBadgeText: {
     ...typography.caption,
     fontWeight: '700',
     color: colors.palace,
   },
-  batteryHeroCard: {
-    padding: spacing.l,
+
+  // Hero Card Styles (Action-First)
+  heroActionCardDue: {
+    backgroundColor: colors.surface,
+    padding: spacing.xl,
     borderRadius: radius.xl,
-    borderWidth: 1.5,
+    marginBottom: spacing.l,
+    borderWidth: 2,
     borderColor: colors.palace,
   },
-  batteryHeaderRow: {
+  heroActionCardWorkout: {
+    backgroundColor: colors.surface,
+    padding: spacing.xl,
+    borderRadius: radius.xl,
+    marginBottom: spacing.l,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+  },
+  heroHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.m,
+  },
+  heroDueTagBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.palaceLight,
+    paddingHorizontal: spacing.s,
+    paddingVertical: 4,
+    borderRadius: radius.pill,
+    gap: 6,
+  },
+  heroDueTagText: {
+    ...typography.caption,
+    fontWeight: '800',
+    color: colors.palace,
+    letterSpacing: 0.8,
+  },
+  heroWorkoutTagBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.palaceLight,
+    paddingHorizontal: spacing.s,
+    paddingVertical: 4,
+    borderRadius: radius.pill,
+    gap: 6,
+  },
+  heroWorkoutTagText: {
+    ...typography.caption,
+    fontWeight: '800',
+    color: colors.palace,
+    letterSpacing: 0.8,
+  },
+  heroCapacityPill: {
+    ...typography.caption,
+    fontWeight: '700',
+    color: colors.textSecondary,
+    backgroundColor: colors.surfaceMuted,
+    paddingHorizontal: spacing.s,
+    paddingVertical: 4,
+    borderRadius: radius.pill,
+  },
+  heroTitle: {
+    ...typography.headingXL,
+    fontSize: 26,
+    color: colors.textPrimary,
+    marginBottom: spacing.xs,
+  },
+  heroSubtitle: {
+    ...typography.bodyM,
+    color: colors.textSecondary,
+    marginBottom: spacing.l,
+  },
+  heroActionBlock: {
+    width: '100%',
+  },
+
+  // Metric Card (Recall Strength)
+  metricCard: {
+    padding: spacing.l,
+    borderRadius: radius.l,
+    marginBottom: spacing.l,
+  },
+  metricHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: spacing.xs,
   },
-  batteryHeaderLabel: {
+  metricHeaderLabel: {
     ...typography.caption,
     fontWeight: '800',
     letterSpacing: 1,
     color: colors.palace,
   },
-  strengthScoreRow: {
+  metricScoreRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
     gap: spacing.s,
     marginBottom: spacing.s,
   },
-  strengthNumber: {
+  metricScoreNumber: {
     ...typography.headingXL,
-    fontSize: 38,
+    fontSize: 30,
     fontWeight: '800',
     color: colors.textPrimary,
   },
-  strengthStatusTag: {
+  metricScoreUnmeasured: {
+    fontSize: 22,
+    fontWeight: '700',
+  },
+  metricStatusTag: {
     ...typography.bodyM,
     fontWeight: '600',
     color: colors.palace,
   },
-  batteryTrack: {
-    height: 10,
+  gaugeTrack: {
+    height: 8,
     backgroundColor: colors.surfaceMuted,
     borderRadius: radius.pill,
     overflow: 'hidden',
-    marginBottom: spacing.m,
+    marginBottom: spacing.s,
   },
-  batteryFill: {
+  gaugeFill: {
     height: '100%',
     backgroundColor: colors.palace,
     borderRadius: radius.pill,
   },
-  actionBlock: {
-    gap: spacing.s,
-  },
-  coachText: {
-    ...typography.bodyM,
+  metricFooterNote: {
+    ...typography.caption,
     color: colors.textSecondary,
-    lineHeight: 20,
   },
-  skillsSection: {
-    marginBottom: spacing.xs,
-  },
-  sectionHeaderTitle: {
-    ...typography.headingM,
-    fontSize: 16,
-    color: colors.textPrimary,
-    marginBottom: spacing.s,
-  },
-  skillsCard: {
-    paddingVertical: spacing.s,
-    paddingHorizontal: spacing.m,
+
+  // Needs Attention Card
+  attentionCard: {
+    padding: spacing.l,
     borderRadius: radius.l,
+    marginBottom: spacing.l,
+    borderLeftWidth: 4,
+    borderLeftColor: colors.palace,
   },
-  skillRow: {
+  attentionHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 10,
-    gap: spacing.m,
+    gap: spacing.s,
+    marginBottom: spacing.xs,
   },
-  skillIconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.palaceLight,
-    justifyContent: 'center',
-    alignItems: 'center',
+  attentionHeaderTitle: {
+    ...typography.caption,
+    fontWeight: '800',
+    letterSpacing: 1,
+    color: colors.palace,
   },
-  skillInfo: {
-    flex: 1,
+  attentionTitle: {
+    ...typography.headingM,
+    fontSize: 18,
+    color: colors.textPrimary,
+    marginBottom: 2,
   },
-  skillTitleRow: {
+  attentionBody: {
+    ...typography.bodyM,
+    color: colors.textSecondary,
+    marginBottom: spacing.m,
+  },
+  attentionActionBtn: {
+    alignSelf: 'flex-start',
+  },
+  attentionActionText: {
+    ...typography.bodyM,
+    fontWeight: '700',
+    color: colors.palace,
+  },
+
+  // Active Palaces Section
+  sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 6,
+    marginBottom: spacing.m,
+    marginTop: spacing.s,
   },
-  skillName: {
-    ...typography.bodyM,
-    fontWeight: '700',
+  sectionTitle: {
+    ...typography.headingM,
+    fontSize: 18,
     color: colors.textPrimary,
   },
-  skillPercent: {
-    ...typography.caption,
+  sectionActionText: {
+    ...typography.bodyM,
     fontWeight: '700',
-    fontSize: 12,
+    color: colors.palace,
   },
-  miniTrack: {
-    height: 5,
-    backgroundColor: colors.surfaceMuted,
-    borderRadius: radius.pill,
-    overflow: 'hidden',
+  palacesList: {
+    gap: spacing.s,
   },
-  miniFill: {
-    height: '100%',
-    borderRadius: radius.pill,
+  palaceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    padding: spacing.m,
+    borderRadius: radius.l,
+    borderWidth: 1.5,
+    borderColor: colors.border,
   },
-  skillDivider: {
-    height: 1,
-    backgroundColor: colors.border,
+  palaceIconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.palaceLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: spacing.m,
+  },
+  palaceInfo: {
+    flex: 1,
+  },
+  palaceName: {
+    ...typography.headingM,
+    fontSize: 16,
+    color: colors.textPrimary,
+    marginBottom: 2,
+  },
+  palaceMeta: {
+    ...typography.caption,
+    color: colors.textSecondary,
+  },
+  palaceStatus: {
+    color: colors.textSecondary,
+    fontWeight: '500',
+  },
+  palaceStatusDue: {
+    color: colors.palace,
+    fontWeight: '700',
   },
 });
